@@ -45,6 +45,7 @@ int main(void)
     wav_tests();
     resampler_tests();
     host_tests();
+    api_tests();
     model_tests();
 
     int result = check_failures() == 0 ? 0 : 1;

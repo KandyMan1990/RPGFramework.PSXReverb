@@ -68,7 +68,8 @@ endif()
 if(PSX_REVERB_TESTS)
     enable_testing()
     add_executable(psxreverb_tests tests/main.c tests/reverb_tests.c tests/unit_tests.c tests/model_tests.c
-        tests/wav_tests.c tests/resampler_tests.c tests/host_tests.c tests/signal.c tools/wav.c)
+        tests/wav_tests.c tests/resampler_tests.c tests/host_tests.c tests/api_tests.c tests/signal.c
+        tools/wav.c)
     target_link_libraries(psxreverb_tests PRIVATE psxreverb_core)
     # The tests reach the core's internals, which the Unity wrapper will not.
     target_include_directories(psxreverb_tests PRIVATE src tools)

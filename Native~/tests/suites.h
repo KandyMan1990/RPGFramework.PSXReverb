@@ -7,5 +7,6 @@ void unit_tests(void);
 void wav_tests(void);
 void resampler_tests(void);
 void host_tests(void);
+void api_tests(void);
 
 #endif
