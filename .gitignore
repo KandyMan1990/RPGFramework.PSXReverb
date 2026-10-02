@@ -103,3 +103,6 @@ InitTestScene*.unity*
 # Native build output
 /Native~/build/
 CMakeUserPresets.json
+# Files the tests write where they run, if run from Native~ rather than by CTest
+/Native~/*.wav
+/Native~/*.raw

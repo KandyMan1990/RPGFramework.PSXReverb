@@ -43,6 +43,8 @@ int main(void)
     reverb_tests();
     unit_tests();
     wav_tests();
+    resampler_tests();
+    host_tests();
     model_tests();
 
     int result = check_failures() == 0 ? 0 : 1;

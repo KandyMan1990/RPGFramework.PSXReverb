@@ -1,4 +1,4 @@
-#include "unit.h"
+#include "host.h"
 #include "wav.h"
 
 #include <stdlib.h>
@@ -10,7 +10,7 @@ static const char *const mode_names[REVERB_MODE_COUNT] = {"off",  "room",  "stud
 static const char usage[] =
     "Usage: psxreverb_render [options] INPUT.wav OUTPUT.wav\n"
     "\n"
-    "Runs a WAV through the console's reverb unit and writes it out as 16-bit stereo at 44.1 kHz.\n"
+    "Runs a WAV through the console's reverb unit and writes it out as 16-bit stereo at the same rate.\n"
     "\n"
     "  --mode NAME       off, room, studio-a, studio-b, studio-c, hall, space, echo, delay or pipe (hall)\n"
     "  --depth N         the reverb's output volume, 0-127 as the console's tools have it (64)\n"
@@ -19,8 +19,8 @@ static const char usage[] =
     "  --tail SECONDS    silence added after the input so the reverb can ring out (4)\n"
     "  --wet             the reverb alone, rather than mixed with the input as the console's mixer does\n"
     "\n"
-    "The input must be 44.1 kHz until other rates are supported. macOS converts with\n"
-    "  afconvert -f WAVE -d LEI16@44100 INPUT.wav CONVERTED.wav\n";
+    "Any of the usual rates from 8 to 192 kHz. At 44.1 kHz the reverb runs as the console's does, sample for\n"
+    "sample; at others it is resampled to 44.1 kHz and back, flat across its band, and arrives a little later.\n";
 
 static bool parse_int(const char *text, int low, int high, int *value)
 {
@@ -142,29 +142,24 @@ int main(int argc, char **argv)
         fprintf(stderr, "psxreverb_render: %s\n", error);
         return 1;
     }
-    if (reader.sample_rate != UNIT_RATE)
+    static host_reverb host;
+    uint32_t rate = reader.sample_rate;
+    if (!host_reverb_init(&host, rate))
     {
-        fprintf(stderr,
-                "psxreverb_render: %s is %u Hz; the reverb runs at 44,100 Hz until other rates are supported.\n",
-                paths[0], (unsigned)reader.sample_rate);
-        fprintf(stderr, "macOS converts with: afconvert -f WAVE -d LEI16@44100 %s CONVERTED.wav\n", paths[0]);
+        fprintf(stderr, "psxreverb_render: %s is %u Hz, which the reverb cannot be resampled to\n", paths[0],
+                (unsigned)rate);
         wav_close(&reader);
         return 1;
     }
 
-    uint64_t total = (uint64_t)reader.frames + (uint64_t)tail_seconds * UNIT_RATE;
-    if (36 + total * 4 > UINT32_MAX)
+    uint64_t total = (uint64_t)reader.frames + (uint64_t)tail_seconds * rate;
+    FILE *output = 36 + total * 4 > UINT32_MAX ? NULL : fopen(paths[1], "wb");
+    if (!output || !wav_write_header(output, rate, (uint32_t)total))
     {
-        fprintf(stderr, "psxreverb_render: the output would be larger than a WAV can hold\n");
+        fprintf(stderr, "psxreverb_render: %s cannot be written%s\n", paths[1],
+                36 + total * 4 > UINT32_MAX ? ": it would be larger than a WAV can hold" : "");
         wav_close(&reader);
-        return 1;
-    }
-
-    FILE *output = fopen(paths[1], "wb");
-    if (!output || !wav_write_header(output, UNIT_RATE, (uint32_t)total))
-    {
-        fprintf(stderr, "psxreverb_render: %s cannot be written\n", paths[1]);
-        wav_close(&reader);
+        host_reverb_free(&host);
         if (output)
         {
             fclose(output);
@@ -172,26 +167,25 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    static reverb_unit unit;
-    reverb_unit_init(&unit);
-    reverb_set_mode(&unit.reverb, mode);
+    reverb_set_mode(&host.unit.reverb, mode);
     if (delay >= 0)
     {
-        reverb_set_delay(&unit.reverb, delay);
+        reverb_set_delay(&host.unit.reverb, delay);
     }
     if (feedback >= 0)
     {
-        reverb_set_feedback(&unit.reverb, feedback);
+        reverb_set_feedback(&host.unit.reverb, feedback);
     }
     // The console's tools give depth as 0-127, which reaches the register shifted up by 8.
-    unit.depth[0] = (int16_t)(depth << 8);
-    unit.depth[1] = (int16_t)(depth << 8);
+    host.unit.depth[0] = (int16_t)(depth << 8);
+    host.unit.depth[1] = (int16_t)(depth << 8);
 
     enum
     {
         BLOCK = 4096
     };
     static int16_t block[BLOCK * 2];
+    static float wet[BLOCK * 2];
     uint64_t clipped = 0;
     bool written = true;
     for (uint64_t done = 0; done < total && written;)
@@ -200,26 +194,30 @@ int main(int argc, char **argv)
         // Past the end of the input, or of a file shorter than its header says, is silence.
         size_t read = wav_read_stereo(&reader, block, count);
         memset(block + read * 2, 0, (count - read) * 2 * sizeof(block[0]));
-        for (size_t i = 0; i < count; i++)
+        for (size_t i = 0; i < count * 2; i++)
         {
-            int16_t *frame = block + i * 2;
-            int16_t wet[2];
-            reverb_unit_process(&unit, frame, wet);
-            for (int side = 0; side < 2; side++)
+            wet[i] = (float)block[i] / 32768.0f;
+        }
+        host_reverb_process(&host, wet, wet, count);
+        // At 44.1 kHz the reverb's float is its 16-bit sample exactly, so this mix is the console's.
+        for (size_t i = 0; i < count * 2; i++)
+        {
+            float scaled = wet[i] * 32768.0f;
+            int32_t reverb = (int32_t)(scaled + (scaled < 0 ? -0.5f : 0.5f));
+            int32_t mixed = wet_only ? reverb : block[i] + reverb;
+            if (mixed < INT16_MIN || mixed > INT16_MAX)
             {
-                int32_t mixed = wet_only ? wet[side] : frame[side] + wet[side];
-                if (mixed < INT16_MIN || mixed > INT16_MAX)
-                {
-                    clipped++;
-                }
-                frame[side] = saturate16(mixed);
+                clipped++;
             }
+            block[i] = saturate16(mixed);
         }
         written = wav_write_stereo(output, block, count);
         done += count;
     }
 
+    double added = host_reverb_added_latency(&host);
     wav_close(&reader);
+    host_reverb_free(&host);
     if (fclose(output) != 0 || !written)
     {
         fprintf(stderr, "psxreverb_render: %s could not be written in full\n", paths[1]);
@@ -227,7 +225,12 @@ int main(int argc, char **argv)
     }
 
     printf("%s, depth %d: %.1f s in, %.1f s out -> %s\n", mode_names[mode], depth,
-           (double)reader.frames / (double)UNIT_RATE, (double)total / (double)UNIT_RATE, paths[1]);
+           (double)reader.frames / (double)rate, (double)total / (double)rate, paths[1]);
+    if (rate != UNIT_RATE)
+    {
+        printf("Resampled from %u Hz, which brings the reverb %.2f ms later than the console would.\n",
+               (unsigned)rate, 1000.0 * added / (double)rate);
+    }
     if (clipped > 0)
     {
         printf("%llu samples clipped in the mix; lower the input or the depth, or use --wet\n",

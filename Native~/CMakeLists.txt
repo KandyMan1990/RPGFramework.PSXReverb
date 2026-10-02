@@ -43,10 +43,14 @@ function(psx_reverb_configure target)
     endif()
 endfunction()
 
-add_library(psxreverb_core STATIC src/psx_reverb.c src/presets.c src/reverb.c src/unit.c)
+add_library(psxreverb_core STATIC src/psx_reverb.c src/presets.c src/reverb.c src/unit.c src/resampler.c src/host.c)
 target_include_directories(psxreverb_core PUBLIC include)
 # Linked into the shared library Unity loads, which Linux and Android refuse without position-independent code.
 set_target_properties(psxreverb_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# The resampler designs its filter with the maths library, which Linux and Android link separately.
+if(NOT WIN32)
+    target_link_libraries(psxreverb_core PUBLIC m)
+endif()
 psx_reverb_configure(psxreverb_core)
 
 if(PSX_REVERB_TOOLS)
@@ -64,7 +68,7 @@ endif()
 if(PSX_REVERB_TESTS)
     enable_testing()
     add_executable(psxreverb_tests tests/main.c tests/reverb_tests.c tests/unit_tests.c tests/model_tests.c
-        tests/wav_tests.c tools/wav.c)
+        tests/wav_tests.c tests/resampler_tests.c tests/host_tests.c tests/signal.c tools/wav.c)
     target_link_libraries(psxreverb_tests PRIVATE psxreverb_core)
     # The tests reach the core's internals, which the Unity wrapper will not.
     target_include_directories(psxreverb_tests PRIVATE src tools)

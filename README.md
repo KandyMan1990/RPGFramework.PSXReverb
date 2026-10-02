@@ -46,8 +46,10 @@ Native~/build/release/psxreverb_render --mode hall INPUT.wav OUTPUT.wav
 `--depth` sets the reverb's level, 0–127 (64); `--delay` and `--feedback` set echo and delay's, 0–127; `--tail`
 changes the seconds added; `--wet` writes the reverb alone. `--help` lists them all.
 
-It reads 8, 16, 24 and 32-bit integer and 32-bit float WAVs at 44.1 kHz, the reverb's own rate; other rates are to
-come. macOS converts a file with `afconvert -f WAVE -d LEI16@44100 INPUT OUTPUT.wav`.
+It reads 8, 16, 24 and 32-bit integer and 32-bit float WAVs at any of the usual rates from 8 to 192 kHz, and writes
+at the same rate. At 44.1 kHz, the reverb's own rate, it runs as the console's does, sample for sample. At other rates
+it resamples to 44.1 kHz and back, flat across the reverb's band, which brings the reverb a fraction of a millisecond
+later — 0.29 ms at 48 kHz.
 
 ---
 

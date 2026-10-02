@@ -5,5 +5,7 @@ void reverb_tests(void);
 void model_tests(void);
 void unit_tests(void);
 void wav_tests(void);
+void resampler_tests(void);
+void host_tests(void);
 
 #endif
