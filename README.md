@@ -42,7 +42,8 @@ mixer does, with four seconds added for the tail:
 Native~/build/release/psxreverb_render --mode hall INPUT.wav OUTPUT.wav
 ```
 
-`--mode` is one of `off`, `room`, `studio-a`, `studio-b`, `studio-c`, `hall`, `space`, `echo`, `delay` and `pipe`;
+`--mode` is one of `off`, `room`, `studio-a`, `studio-b`, `studio-c`, `hall`, `space`, `echo`, `delay` and `pipe`,
+`studio-c` by default;
 `--depth` sets the reverb's level, 0–127 (64); `--delay` and `--feedback` set echo and delay's, 0–127; `--tail`
 changes the seconds added; `--wet` writes the reverb alone. `--help` lists them all.
 

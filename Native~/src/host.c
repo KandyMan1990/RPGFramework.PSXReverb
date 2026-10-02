@@ -6,11 +6,12 @@
 static int16_t to16(float sample)
 {
     float scaled = sample * 32768.0f;
-    // A NaN is never equal to itself.
-    int16_t value = scaled != scaled         ? 0
-                    : scaled <= -32768.0f    ? INT16_MIN
-                    : scaled >= 32767.0f     ? INT16_MAX
-                                             : (int16_t)(scaled + (scaled < 0 ? -0.5f : 0.5f));
+    // A NaN is never equal to itself. GCC calls the conditional an int, so it is narrowed explicitly after.
+    int32_t rounded = scaled != scaled         ? 0
+                      : scaled <= -32768.0f    ? INT16_MIN
+                      : scaled >= 32767.0f     ? INT16_MAX
+                                               : (int32_t)(scaled + (scaled < 0 ? -0.5f : 0.5f));
+    int16_t value = (int16_t)rounded;
     return value;
 }
 
