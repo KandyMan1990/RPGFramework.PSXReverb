@@ -3,5 +3,6 @@
 
 void reverb_tests(void);
 void model_tests(void);
+void unit_tests(void);
 
 #endif

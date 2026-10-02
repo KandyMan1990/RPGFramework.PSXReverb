@@ -7,9 +7,15 @@ and works its taps out ahead of time. They share only what both are written from
 rounded as Mednafen rounds them — and this file has its own copy of the tables, so a mistake made in the C's copy
 cannot be repeated here and hidden.
 
-    python3 reverb_model.py                    rewrite model_fingerprints.h beside this file
-    python3 reverb_model.py --print CASE N     print the model's first N samples of a case
-    python3 reverb_model.py --compare CASE RAW find where the C's output for a case, saved by the test, parts from it
+It models two layers, as the C has them: the reverb at 22,050 Hz, and the whole unit at 44.1 kHz around it — the
+console's resampling filter down, the reverb, the filter up and the output volume. The filter here is applied the
+textbook way, a straight 39-tap convolution down and, up, the reverb's outputs with a zero stuffed between each,
+convolved and doubled, where the C skips the zero taps and takes the two phases apart.
+
+    python3 reverb_model.py                           rewrite model_fingerprints.h beside this file (half a minute)
+    python3 reverb_model.py --print [unit] CASE N     print the model's first N samples of a case
+    python3 reverb_model.py --compare [unit] CASE RAW find where the C's output for a case, saved by the test, parts
+                                                      from the model's
 """
 
 import os
@@ -89,6 +95,18 @@ CASES = [(mode, -1, -1, shift, -1, -1) for mode in range(10) for shift in (0, 3)
     (HALL, -1, -1, 3, ROOM, -1),
     (ECHO, -1, -1, 3, -1, 40),
     (DELAY, -1, -1, 0, ECHO, -1),
+]
+
+UNIT_TICKS = 110250  # the same 2.5 seconds at 44.1 kHz
+
+# As above, then the output volume for each side.
+UNIT_CASES = [(mode, -1, -1, 3, -1, -1, 0x7FFF, 0x7FFF) for mode in range(10)] + [
+    (ROOM, -1, -1, 0, -1, -1, 0x7FFF, -0x8000),
+    (HALL, -1, -1, 0, -1, -1, -0x8000, 0x4000),
+    (PIPE, -1, -1, 0, -1, -1, 0x3000, 0x7FFF),
+    (ECHO, 64, 100, 3, -1, -1, 0x3FFF, 0x2000),
+    (HALL, -1, -1, 3, ROOM, -1, 0x7FFF, 0x7FFF),
+    (ECHO, -1, -1, 3, -1, 40, 0x7FFF, 0x7FFF),
 ]
 
 
@@ -179,6 +197,45 @@ class Console:
         return outputs
 
 
+# The maintained PSX-SPX's listing of the resampling filter, as it appears there.
+FILTER = '''
+     -0001h,  0000h,  0002h,  0000h, -000Ah,  0000h,  0023h,  0000h,
+     -0067h,  0000h,  010Ah,  0000h, -0268h,  0000h,  0534h,  0000h,
+     -0B90h,  0000h,  2806h,  4000h,  2806h,  0000h, -0B90h,  0000h,
+      0534h,  0000h, -0268h,  0000h,  010Ah,  0000h, -0067h,  0000h,
+      0023h,  0000h, -000Ah,  0000h,  0002h,  0000h, -0001h,'''
+TAPS = [int(sign + digits, 16) for sign, digits in re.findall(r'(-?)([0-9A-F]{4})h', FILTER)]
+assert len(TAPS) == 39
+
+
+class Unit:
+    def __init__(self, mode):
+        self.console = Console()
+        self.console.set_mode(mode)
+        self.inputs = ([0] * 39, [0] * 39)   # newest last
+        self.stuffed = ([0] * 39, [0] * 39)  # the reverb's outputs at 44.1 kHz, a zero between each, newest last
+        self.tick = 0
+
+    # The reverb runs on odd samples; even samples stuff a zero.
+    def process(self, inputs, depth):
+        for side in (0, 1):
+            self.inputs[side].append(inputs[side])
+            del self.inputs[side][0]
+        produced = (0, 0)
+        if self.tick % 2:
+            reduced = [saturate(sum(tap * x for tap, x in zip(TAPS, reversed(self.inputs[side]))) >> 15)
+                       for side in (0, 1)]
+            produced = self.console.process(reduced)
+        outputs = []
+        for side in (0, 1):
+            self.stuffed[side].append(produced[side])
+            del self.stuffed[side][0]
+            wet = saturate((sum(tap * z for tap, z in zip(TAPS, reversed(self.stuffed[side]))) * 2) >> 15)
+            outputs.append(saturate((wet * depth[side]) >> 15))
+        self.tick += 1
+        return outputs
+
+
 # The test's noise, generated identically on both sides.
 def noise(shift):
     seed = 1
@@ -206,6 +263,24 @@ def run(case):
     return samples
 
 
+def run_unit(case):
+    mode, delay, feedback, shift, later_mode, later_delay, depth_left, depth_right = case
+    unit = Unit(mode)
+    if delay >= 0:
+        unit.console.set_delay(delay)
+    if feedback >= 0:
+        unit.console.set_feedback(feedback)
+    samples = []
+    for tick, inputs in zip(range(UNIT_TICKS), noise(shift)):
+        if tick == UNIT_TICKS // 2:
+            if later_mode >= 0:
+                unit.console.set_mode(later_mode)
+            if later_delay >= 0:
+                unit.console.set_delay(later_delay)
+        samples.extend(unit.process(inputs, (depth_left, depth_right)))
+    return samples
+
+
 def fingerprint(samples):
     value = 0xCBF29CE484222325
     for byte in struct.pack(f'<{len(samples)}h', *samples):
@@ -225,6 +300,16 @@ def write_fingerprints():
     for index, case in enumerate(CASES):
         print(f'case {index}: {case}', file=sys.stderr)
         lines.append('    {' + ', '.join(str(field) for field in case) + f', 0x{fingerprint(run(case)):016X}ull}},')
+    lines += ['};', '',
+              f'enum {{ MODEL_UNIT_TICKS = {UNIT_TICKS} }};', '',
+              'typedef struct model_unit_case', '{',
+              '    int mode, delay, feedback, shift, later_mode, later_delay, depth_left, depth_right;',
+              '    uint64_t fingerprint;', '} model_unit_case;', '',
+              'static const model_unit_case model_unit_cases[] = {']
+    for index, case in enumerate(UNIT_CASES):
+        print(f'unit case {index}: {case}', file=sys.stderr)
+        fields = ', '.join(str(field) for field in case)
+        lines.append(f'    {{{fields}, 0x{fingerprint(run_unit(case)):016X}ull}},')
     lines += ['};', '', '#endif', '']
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model_fingerprints.h')
     with open(path, 'w') as header:
@@ -233,14 +318,18 @@ def write_fingerprints():
 
 
 def main(arguments):
+    unit = len(arguments) == 4 and arguments[1] == 'unit'
+    if unit:
+        arguments = [arguments[0]] + arguments[2:]
+    model_of = (lambda index: run_unit(UNIT_CASES[index])) if unit else (lambda index: run(CASES[index]))
     if not arguments:
         write_fingerprints()
     elif arguments[0] == '--print' and len(arguments) == 3:
-        samples = run(CASES[int(arguments[1])])
+        samples = model_of(int(arguments[1]))
         for tick in range(int(arguments[2])):
             print(tick, samples[2 * tick], samples[2 * tick + 1])
     elif arguments[0] == '--compare' and len(arguments) == 3:
-        model = run(CASES[int(arguments[1])])
+        model = model_of(int(arguments[1]))
         with open(arguments[2], 'rb') as raw:
             c = struct.unpack(f'<{len(model)}h', raw.read())
         first = next((i for i in range(len(model)) if model[i] != c[i]), None)

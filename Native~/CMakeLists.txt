@@ -42,7 +42,7 @@ function(psx_reverb_configure target)
     endif()
 endfunction()
 
-add_library(psxreverb_core STATIC src/psx_reverb.c src/presets.c src/reverb.c)
+add_library(psxreverb_core STATIC src/psx_reverb.c src/presets.c src/reverb.c src/unit.c)
 target_include_directories(psxreverb_core PUBLIC include)
 # Linked into the shared library Unity loads, which Linux and Android refuse without position-independent code.
 set_target_properties(psxreverb_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
@@ -50,7 +50,7 @@ psx_reverb_configure(psxreverb_core)
 
 if(PSX_REVERB_TESTS)
     enable_testing()
-    add_executable(psxreverb_tests tests/main.c tests/reverb_tests.c tests/model_tests.c)
+    add_executable(psxreverb_tests tests/main.c tests/reverb_tests.c tests/unit_tests.c tests/model_tests.c)
     target_link_libraries(psxreverb_tests PRIVATE psxreverb_core)
     # The tests reach the core's internals, which the Unity wrapper will not.
     target_include_directories(psxreverb_tests PRIVATE src)

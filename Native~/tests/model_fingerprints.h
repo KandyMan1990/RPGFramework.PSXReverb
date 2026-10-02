@@ -44,4 +44,31 @@ static const model_case model_cases[] = {
     {8, -1, -1, 0, 7, -1, 0x0050E27181A444D1ull},
 };
 
+enum { MODEL_UNIT_TICKS = 110250 };
+
+typedef struct model_unit_case
+{
+    int mode, delay, feedback, shift, later_mode, later_delay, depth_left, depth_right;
+    uint64_t fingerprint;
+} model_unit_case;
+
+static const model_unit_case model_unit_cases[] = {
+    {0, -1, -1, 3, -1, -1, 32767, 32767, 0xB8650AED8665EE45ull},
+    {1, -1, -1, 3, -1, -1, 32767, 32767, 0x86A9B1BFC6E05875ull},
+    {2, -1, -1, 3, -1, -1, 32767, 32767, 0x649A47442979783Aull},
+    {3, -1, -1, 3, -1, -1, 32767, 32767, 0x22DA8453FC69306Aull},
+    {4, -1, -1, 3, -1, -1, 32767, 32767, 0x28526EE83F1932F8ull},
+    {5, -1, -1, 3, -1, -1, 32767, 32767, 0x59663569875CEFFEull},
+    {6, -1, -1, 3, -1, -1, 32767, 32767, 0x5A6FDAB96F748F2Dull},
+    {7, -1, -1, 3, -1, -1, 32767, 32767, 0x805E49D10C5380EBull},
+    {8, -1, -1, 3, -1, -1, 32767, 32767, 0x8D039D90FADD9FF0ull},
+    {9, -1, -1, 3, -1, -1, 32767, 32767, 0x56072D2514E3FB06ull},
+    {1, -1, -1, 0, -1, -1, 32767, -32768, 0xC8767ECB560266CAull},
+    {5, -1, -1, 0, -1, -1, -32768, 16384, 0xAAB70CA583940E5Aull},
+    {9, -1, -1, 0, -1, -1, 12288, 32767, 0xDBF79D2C7FD923FBull},
+    {7, 64, 100, 3, -1, -1, 16383, 8192, 0xABB8249FF2CD73D5ull},
+    {5, -1, -1, 3, 1, -1, 32767, 32767, 0x6628815DCF0A2F99ull},
+    {7, -1, -1, 3, -1, 40, 32767, 32767, 0xD46D0873D966DCE7ull},
+};
+
 #endif
