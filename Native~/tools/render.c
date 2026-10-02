@@ -203,8 +203,8 @@ int main(int argc, char **argv)
         for (size_t i = 0; i < count * 2; i++)
         {
             float scaled = wet[i] * 32768.0f;
-            int32_t reverb = (int32_t)(scaled + (scaled < 0 ? -0.5f : 0.5f));
-            int32_t mixed = wet_only ? reverb : block[i] + reverb;
+            int32_t reverb_sample = (int32_t)(scaled + (scaled < 0 ? -0.5f : 0.5f));
+            int32_t mixed = wet_only ? reverb_sample : block[i] + reverb_sample;
             if (mixed < INT16_MIN || mixed > INT16_MAX)
             {
                 clipped++;
