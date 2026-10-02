@@ -4,7 +4,8 @@ An Audio Mixer effect for Unity that reproduces the PlayStation's SPU reverb: th
 processing in 16-bit integer maths, and its resampling filter, sample for sample. Any Unity project can use it; it
 depends on nothing else in the RPG Framework.
 
-**Not built yet.** This repository holds the native project the reverb will be written in.
+**Not a Unity plugin yet.** The reverb itself is built and tested, with a command-line tool to hear it; the Unity
+plugin that wraps it is still to come.
 
 ---
 
@@ -29,6 +30,24 @@ ctest --preset debug
 `debug` builds with warnings as errors and with AddressSanitizer and UndefinedBehaviorSanitizer where the compiler has
 them; `release` builds optimised. On macOS, `cmake --preset xcode` generates an Xcode project in `Native~/build/xcode`
 for stepping through the code in a debugger.
+
+---
+
+## Hearing it
+
+`psxreverb_render` runs a WAV through the reverb and writes a 16-bit stereo WAV, mixed with the input as the console's
+mixer does, with four seconds added for the tail:
+
+```
+Native~/build/release/psxreverb_render --mode hall INPUT.wav OUTPUT.wav
+```
+
+`--mode` is one of `off`, `room`, `studio-a`, `studio-b`, `studio-c`, `hall`, `space`, `echo`, `delay` and `pipe`;
+`--depth` sets the reverb's level, 0–127 (64); `--delay` and `--feedback` set echo and delay's, 0–127; `--tail`
+changes the seconds added; `--wet` writes the reverb alone. `--help` lists them all.
+
+It reads 8, 16, 24 and 32-bit integer and 32-bit float WAVs at 44.1 kHz, the reverb's own rate; other rates are to
+come. macOS converts a file with `afconvert -f WAVE -d LEI16@44100 INPUT OUTPUT.wav`.
 
 ---
 

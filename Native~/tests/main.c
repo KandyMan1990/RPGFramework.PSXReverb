@@ -42,6 +42,7 @@ int main(void)
     version_packs_major_minor_and_patch();
     reverb_tests();
     unit_tests();
+    wav_tests();
     model_tests();
 
     int result = check_failures() == 0 ? 0 : 1;
