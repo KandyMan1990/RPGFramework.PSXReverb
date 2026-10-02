@@ -13,7 +13,7 @@ static const char usage[] =
     "Runs a WAV through the console's reverb unit and writes it out as 16-bit stereo at the same rate.\n"
     "\n"
     "  --mode NAME       off, room, studio-a, studio-b, studio-c, hall, space, echo, delay or pipe (studio-c)\n"
-    "  --depth N         the reverb's output volume, 0-127 as the console's tools have it (64)\n"
+    "  --depth N         the reverb's output volume, 0-127 as the console's tools have it (40)\n"
     "  --delay N         echo and delay only: delay time, 1-127 (127)\n"
     "  --feedback N      echo and delay only: feedback, 0-127 (127 for echo, 0 for delay)\n"
     "  --tail SECONDS    silence added after the input so the reverb can ring out (4)\n"
@@ -55,7 +55,7 @@ static int16_t saturate16(int32_t value)
 int main(int argc, char **argv)
 {
     int mode = REVERB_MODE_STUDIO_C;
-    int depth = 64;
+    int depth = 40;
     int delay = -1;
     int feedback = -1;
     int tail_seconds = 4;
