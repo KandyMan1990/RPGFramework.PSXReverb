@@ -1,0 +1,17 @@
+{
+  "name": "com.rpgframework.psxreverb",
+  "version": "0.1.0",
+  "displayName": "RPG Framework PSX Reverb",
+  "description": "An Audio Mixer effect that reproduces the PlayStation's SPU reverb",
+  "unity": "6000.6",
+  "keywords": [
+    "RPG Framework",
+    "Audio",
+    "Reverb",
+    "PSX"
+  ],
+  "author": {
+    "name": "Elliott Armstrong",
+    "url": "https://github.com/KandyMan1990/RPGFramework.PSXReverb"
+  }
+}
