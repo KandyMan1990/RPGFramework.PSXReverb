@@ -1,5 +1,6 @@
 #include "check.h"
 #include "psx_reverb.h"
+#include "suites.h"
 
 #include <stdio.h>
 
@@ -39,6 +40,7 @@ static void version_packs_major_minor_and_patch(void)
 int main(void)
 {
     version_packs_major_minor_and_patch();
+    reverb_tests();
 
     int result = check_failures() == 0 ? 0 : 1;
     printf("%s\n", result == 0 ? "All checks passed" : "Checks failed");
