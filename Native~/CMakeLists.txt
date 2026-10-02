@@ -50,10 +50,14 @@ psx_reverb_configure(psxreverb_core)
 
 if(PSX_REVERB_TESTS)
     enable_testing()
-    add_executable(psxreverb_tests tests/main.c tests/reverb_tests.c)
+    add_executable(psxreverb_tests tests/main.c tests/reverb_tests.c tests/model_tests.c)
     target_link_libraries(psxreverb_tests PRIVATE psxreverb_core)
     # The tests reach the core's internals, which the Unity wrapper will not.
     target_include_directories(psxreverb_tests PRIVATE src)
+    # MSVC calls fopen unsafe, which warnings as errors would turn into a failed build.
+    if(MSVC)
+        target_compile_definitions(psxreverb_tests PRIVATE _CRT_SECURE_NO_WARNINGS)
+    endif()
     psx_reverb_configure(psxreverb_tests)
     add_test(NAME psxreverb_tests COMMAND psxreverb_tests)
 endif()

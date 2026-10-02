@@ -252,7 +252,7 @@ static void the_ring_wraps_without_moving_the_echo(void)
 }
 
 // Full-scale input times -1.0 is +1.0, one past what 16 bits hold. It saturates on the way in to 32767, which the
-// reflection takes to 32766, the comb to 65530 and the first all-pass halves to 32765 — near the top rather than
+// reflection takes to 32766, the comb to 65530 and the first all-pass halves to 32765: near the top rather than
 // wrapped round to the bottom.
 static void full_scale_input_saturates(void)
 {

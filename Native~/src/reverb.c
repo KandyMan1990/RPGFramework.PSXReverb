@@ -28,7 +28,7 @@ static int clamp(int value, int low, int high)
 }
 
 // Every offset is kept within the ring, so no setting can reach outside it. Where the console's own address would
-// leave its work area — an address register of 0 read one sample back — this wraps inside the ring instead; in every
+// leave its work area (an address register of 0 read one sample back), this wraps inside the ring instead; in every
 // preset that value only reaches comb taps whose volume is 0.
 static int32_t offset(const reverb *r, int32_t address, int32_t back)
 {
