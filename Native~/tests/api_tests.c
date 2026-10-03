@@ -46,6 +46,9 @@ static void rates_it_cannot_reach_give_none(void)
     psx_reverb *r = psx_reverb_create(44101);
     CHECK(r == NULL);
     psx_reverb_destroy(r);
+    r = psx_reverb_create(0);
+    CHECK(r == NULL);
+    psx_reverb_destroy(r);
     r = psx_reverb_create(48000);
     CHECK(r != NULL);
     psx_reverb_destroy(r);

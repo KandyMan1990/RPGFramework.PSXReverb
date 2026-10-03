@@ -41,6 +41,10 @@ static double bessel_i0(double x)
 bool resampler_init(resampler *r, uint32_t rate_in, uint32_t rate_out)
 {
     memset(r, 0, sizeof(*r));
+    if (rate_in == 0 || rate_out == 0)
+    {
+        return false;
+    }
     const uint32_t divisor = greatest_common_divisor(rate_in, rate_out);
     r->up = rate_out / divisor;
     r->down = rate_in / divisor;

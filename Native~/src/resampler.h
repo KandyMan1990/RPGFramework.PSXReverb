@@ -29,8 +29,8 @@ typedef struct resampler
     uint32_t phase;
 } resampler;
 
-// Designs the filter; allocates, so not for the audio thread. False for a ratio needing more than 1024 phases or more
-// outputs per input than RESAMPLER_MAX_OUTPUTS.
+// Designs the filter; allocates, so not for the audio thread. False for a rate of 0, a ratio needing more than 1024
+// phases, or more outputs per input than RESAMPLER_MAX_OUTPUTS.
 bool resampler_init(resampler *r, uint32_t rate_in, uint32_t rate_out);
 void resampler_free(resampler *r);
 

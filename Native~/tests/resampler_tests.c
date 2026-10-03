@@ -61,6 +61,9 @@ static void ratios_are_exact_and_bounded(void)
     // 44,100 phases, and eleven outputs to one input.
     CHECK(!resampler_init(&r, 44101, 44100));
     CHECK(!resampler_init(&r, 4000, 44100));
+    // A rate of 0 would divide by zero.
+    CHECK(!resampler_init(&r, 0, 44100));
+    CHECK(!resampler_init(&r, 44100, 0));
 }
 
 // Within 0.01 dB from 100 Hz to 10 kHz, both ways, at every rate whose band reaches that far.
