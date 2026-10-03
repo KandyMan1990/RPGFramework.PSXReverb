@@ -29,6 +29,7 @@ UnityAudioParameterDefinition parameters[PARAMETER_COUNT] = {
 };
 
 const size_t CHUNK_FRAMES = 256;
+const int STATUS_LENGTH = 3 + PARAMETER_COUNT;
 
 // Unity sets parameters on one thread and processes on another, so a setting waits in requested for the next block.
 struct Effect
@@ -192,10 +193,25 @@ UNITY_AUDIODSP_RESULT UNITY_AUDIODSP_CALLBACK get_float_parameter(UnityAudioEffe
     return UNITY_AUDIODSP_OK;
 }
 
-// Every one of Unity's examples gives this, so Unity is not trusted to check for none; there is nothing to show.
-UNITY_AUDIODSP_RESULT UNITY_AUDIODSP_CALLBACK get_float_buffer(UnityAudioEffectState *, const char *, float *, int)
+// "Status", for the editor: 1 if the reverb is running or 0 if it plays silence, the rate it was made for, the rate the
+// mixer runs at, then each parameter as the plugin holds it.
+UNITY_AUDIODSP_RESULT UNITY_AUDIODSP_CALLBACK get_float_buffer(UnityAudioEffectState *state, const char *name,
+                                                               float *buffer, int numsamples)
 {
-    return UNITY_AUDIODSP_ERR_UNSUPPORTED;
+    if (std::strcmp(name, "Status") != 0 || numsamples < STATUS_LENGTH)
+    {
+        return UNITY_AUDIODSP_ERR_UNSUPPORTED;
+    }
+    const Effect *effect = static_cast<const Effect *>(state->effectdata);
+    const bool running = effect->reverb && state->samplerate == effect->sample_rate;
+    buffer[0] = running ? 1.0f : 0.0f;
+    buffer[1] = static_cast<float>(effect->sample_rate);
+    buffer[2] = static_cast<float>(state->samplerate);
+    for (int i = 0; i < PARAMETER_COUNT; i++)
+    {
+        buffer[3 + i] = effect->requested[i].load(std::memory_order_relaxed);
+    }
+    return UNITY_AUDIODSP_OK;
 }
 
 UnityAudioEffectDefinition make_definition()

@@ -345,6 +345,36 @@ void a_rate_changed_under_it_is_silent()
     instance.state.samplerate = 44100;
     CHECK(silent(instance, 2));
 }
+
+// What the editor reads to say whether the effect is running, and what it holds.
+void its_status_says_whether_it_runs_and_what_it_holds()
+{
+    float status[7] = {};
+    Instance running(48000);
+    running.set(PRESET, 8.0f);
+    running.set(DEPTH, 300.0f);
+    CHECK(effect->getfloatbuffer(&running.state, "Status", status, 7) == UNITY_AUDIODSP_OK);
+    CHECK(status[0] == 1.0f && status[1] == 48000.0f && status[2] == 48000.0f);
+    CHECK(status[3] == 8.0f && status[4] == 127.0f && status[5] == 127.0f && status[6] == 127.0f);
+
+    running.state.samplerate = 44100;
+    CHECK(effect->getfloatbuffer(&running.state, "Status", status, 7) == UNITY_AUDIODSP_OK);
+    CHECK(status[0] == 0.0f && status[1] == 48000.0f && status[2] == 44100.0f);
+
+    Instance unreachable(4000);
+    CHECK(effect->getfloatbuffer(&unreachable.state, "Status", status, 7) == UNITY_AUDIODSP_OK);
+    CHECK(status[0] == 0.0f);
+
+    CHECK(effect->getfloatbuffer(&running.state, "Status", status, 6) == UNITY_AUDIODSP_ERR_UNSUPPORTED);
+    CHECK(effect->getfloatbuffer(&running.state, "Spectrum", status, 7) == UNITY_AUDIODSP_ERR_UNSUPPORTED);
+}
+
+void a_rate_of_0_is_silent()
+{
+    Instance instance(0);
+    instance.state.samplerate = 48000;
+    CHECK(silent(instance, 2));
+}
 } // namespace
 
 int main(int argc, char **argv)
@@ -372,6 +402,8 @@ int main(int argc, char **argv)
     values_round_to_whole_and_hold_to_their_range();
     a_rate_it_cannot_run_at_is_silent();
     a_rate_changed_under_it_is_silent();
+    a_rate_of_0_is_silent();
+    its_status_says_whether_it_runs_and_what_it_holds();
 
     const int result = check_failures() == 0 ? 0 : 1;
     std::printf("%s\n", result == 0 ? "All checks passed" : "Checks failed");

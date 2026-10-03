@@ -41,6 +41,22 @@
         "lhs": "${hostSystemName}",
         "rhs": "Darwin"
       }
+    },
+    {
+      "name": "macos",
+      "displayName": "The macOS plugin: release, universal, for macOS 12 and later as Unity 6.6's players are",
+      "binaryDir": "${sourceDir}/build/macos",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_OSX_ARCHITECTURES": "arm64;x86_64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "12.0",
+        "PSX_REVERB_WARNINGS_AS_ERRORS": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
     }
   ],
   "buildPresets": [
@@ -52,6 +68,11 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos",
+      "configurePreset": "macos",
       "configuration": "Release"
     }
   ],
@@ -67,6 +88,14 @@
     {
       "name": "release",
       "configurePreset": "release",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "macos",
+      "configurePreset": "macos",
       "configuration": "Release",
       "output": {
         "outputOnFailure": true

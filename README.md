@@ -5,7 +5,8 @@ processing in 16-bit integer maths, and its resampling filter, sample for sample
 depends on nothing else in the RPG Framework.
 
 **Not in the package yet.** The reverb is built and tested, with a command-line tool to hear it, and so is the Unity
-plugin that wraps it, `audioplugin_psxreverb`; the built plugin is not yet in the package for Unity to load.
+plugin that wraps it, `audioplugin_psxreverb`, which runs in Unity 6.6 on macOS. The built plugin is not yet committed
+to the package; until it is, build it as below and copy it into `Runtime/Plugins/macOS/`.
 
 ---
 
@@ -13,7 +14,9 @@ plugin that wraps it, `audioplugin_psxreverb`; the built plugin is not yet in th
 
 - `Native~/` — the reverb in C and the Unity plugin around it, with their tests, built with CMake. Unity ignores
   folders ending in `~`.
-- The repository root is the Unity package. The built plugin will live here beside `package.json`.
+- The repository root is the Unity package. The built plugin goes in `Runtime/Plugins/<platform>/`.
+- `Editor/` — the effect's Inspector: the preset by name above Unity's sliders, a note on which settings the preset
+  ignores, and a warning whenever the effect plays silence.
 
 ---
 
@@ -31,7 +34,10 @@ ctest --preset debug
 
 `debug` builds with warnings as errors and with AddressSanitizer and UndefinedBehaviorSanitizer where the compiler has
 them; `release` builds optimised. On macOS, `cmake --preset xcode` generates an Xcode project in `Native~/build/xcode`
-for stepping through the code in a debugger.
+for stepping through the code in a debugger, and `macos` builds the plugin as the package carries it — universal, for
+macOS 12 and later — in `Native~/build/macos/audioplugin_psxreverb.bundle`.
+
+After replacing the plugin, restart Unity: it never unloads a native plugin once loaded.
 
 ---
 

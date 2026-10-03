@@ -67,7 +67,19 @@ target_include_directories(audioplugin_psxreverb SYSTEM PRIVATE unity/sdk)
 set_target_properties(audioplugin_psxreverb PROPERTIES
     PREFIX "" CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
 if(APPLE)
-    set_target_properties(audioplugin_psxreverb PROPERTIES BUNDLE ON)
+    # A loadable bundle's Info.plist, as Unity's own demo plugin has; CMake's default is an application's.
+    set_target_properties(audioplugin_psxreverb PROPERTIES
+        BUNDLE ON
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/unity/Info.plist.in"
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.rpgframework.psxreverb
+        MACOSX_BUNDLE_BUNDLE_NAME audioplugin_psxreverb
+        MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
+        MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
+        # A new Info.plist relinks, so the signing after the link runs again and covers it.
+        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/unity/Info.plist.in")
+    # The linker signs the code alone; signing the bundle too seals its Info.plist, as macOS expects of a bundle.
+    add_custom_command(TARGET audioplugin_psxreverb POST_BUILD
+        COMMAND codesign --force --sign - "$<TARGET_BUNDLE_DIR:audioplugin_psxreverb>")
 endif()
 psx_reverb_configure(audioplugin_psxreverb)
 
