@@ -48,7 +48,8 @@ function(psx_reverb_configure target)
     endif()
 endfunction()
 
-add_library(psxreverb_core STATIC src/psx_reverb.c src/presets.c src/reverb.c src/unit.c src/resampler.c src/host.c)
+set(PSX_REVERB_CORE_SOURCES src/psx_reverb.c src/presets.c src/reverb.c src/unit.c src/resampler.c src/host.c)
+add_library(psxreverb_core STATIC ${PSX_REVERB_CORE_SOURCES})
 target_include_directories(psxreverb_core PUBLIC include)
 # Linked into the shared library Unity loads, which Linux and Android refuse without position-independent code, and
 # hidden there, so the library exports Unity's entry point alone.
@@ -59,14 +60,37 @@ if(NOT WIN32)
 endif()
 psx_reverb_configure(psxreverb_core)
 
-# The Unity plugin. Unity loads a library whose name begins audioplugin, a bundle on macOS.
-add_library(audioplugin_psxreverb MODULE unity/psx_reverb_unity.cpp)
-target_link_libraries(audioplugin_psxreverb PRIVATE psxreverb_core)
+# The Unity plugin. Unity loads a library whose name begins audioplugin, or libaudioplugin where a platform's libraries
+# take that prefix: a bundle on macOS, and a static library on iOS, which cannot load one.
+if(IOS)
+    # A static library carries no other library with it, so the core is built into it.
+    add_library(audioplugin_psxreverb STATIC unity/psx_reverb_unity.cpp ${PSX_REVERB_CORE_SOURCES})
+    target_include_directories(audioplugin_psxreverb PRIVATE include)
+else()
+    add_library(audioplugin_psxreverb MODULE unity/psx_reverb_unity.cpp)
+    target_link_libraries(audioplugin_psxreverb PRIVATE psxreverb_core)
+endif()
 # Unity's header as Unity publishes it; its warnings are not ours to fix.
 target_include_directories(audioplugin_psxreverb SYSTEM PRIVATE unity/sdk)
 set_target_properties(audioplugin_psxreverb PROPERTIES
-    PREFIX "" CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
-if(APPLE)
+    C_VISIBILITY_PRESET hidden CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
+# Android packs a native library only if its name begins lib, and Linux names them so too.
+if(WIN32 OR (APPLE AND NOT IOS))
+    set_target_properties(audioplugin_psxreverb PROPERTIES PREFIX "")
+endif()
+if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # The C++ runtime is linked in, so a player needs no particular one, and kept out of what the library exports.
+    target_link_options(audioplugin_psxreverb PRIVATE -Wl,--exclude-libs,ALL)
+endif()
+# The sanitizers bring a C++ runtime of their own, so a debug build keeps the system's.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT PSX_REVERB_SANITIZE)
+    target_link_options(audioplugin_psxreverb PRIVATE -static-libstdc++ -static-libgcc)
+endif()
+if(ANDROID)
+    # Google Play requires native libraries aligned to 16 KB pages from Android 15.
+    target_link_options(audioplugin_psxreverb PRIVATE -Wl,-z,max-page-size=16384)
+endif()
+if(APPLE AND NOT IOS)
     # A loadable bundle's Info.plist, as Unity's own demo plugin has; CMake's default is an application's.
     set_target_properties(audioplugin_psxreverb PROPERTIES
         BUNDLE ON
@@ -76,12 +100,53 @@ if(APPLE)
         MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
         # A new Info.plist relinks, so the signing after the link runs again and covers it.
-        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/unity/Info.plist.in")
+        LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/unity/Info.plist.in"
+        # Installing would otherwise rewrite the library's paths, which breaks its signature.
+        BUILD_WITH_INSTALL_RPATH ON)
     # The linker signs the code alone; signing the bundle too seals its Info.plist, as macOS expects of a bundle.
     add_custom_command(TARGET audioplugin_psxreverb POST_BUILD
         COMMAND codesign --force --sign - "$<TARGET_BUNDLE_DIR:audioplugin_psxreverb>")
 endif()
 psx_reverb_configure(audioplugin_psxreverb)
+
+# cmake --install with the package root as its prefix puts the plugin where the package carries it, with the .meta files
+# that tell Unity which platform and CPU it is for, kept under unity/package.
+if(IOS)
+    set(plugin_dirs iOS)
+elseif(APPLE)
+    set(plugin_dirs macOS)
+elseif(ANDROID)
+    set(plugin_dirs Android Android/${ANDROID_ABI})
+elseif(WIN32)
+    set(windows_x64 x86_64)
+    set(windows_ARM64 ARM64)
+    set(windows_X86 x86)
+    set(plugin_dirs Windows Windows/${windows_${CMAKE_C_COMPILER_ARCHITECTURE_ID}})
+else()
+    set(plugin_dirs Linux Linux/x86_64)
+endif()
+list(GET plugin_dirs -1 plugin_dir)
+set(package_meta "${CMAKE_CURRENT_SOURCE_DIR}/unity/package")
+install(TARGETS audioplugin_psxreverb
+    LIBRARY DESTINATION Runtime/Plugins/${plugin_dir}
+    ARCHIVE DESTINATION Runtime/Plugins/${plugin_dir})
+install(FILES "${package_meta}/Runtime.meta" DESTINATION .)
+install(FILES "${package_meta}/Runtime/Plugins.meta" DESTINATION Runtime)
+foreach(dir IN LISTS plugin_dirs)
+    get_filename_component(parent "Runtime/Plugins/${dir}" DIRECTORY)
+    install(FILES "${package_meta}/Runtime/Plugins/${dir}.meta" DESTINATION ${parent})
+endforeach()
+if(IOS)
+    set(plugin_file libaudioplugin_psxreverb.a)
+elseif(APPLE)
+    set(plugin_file audioplugin_psxreverb.bundle)
+elseif(WIN32)
+    set(plugin_file audioplugin_psxreverb.dll)
+else()
+    set(plugin_file libaudioplugin_psxreverb.so)
+endif()
+install(FILES "${package_meta}/Runtime/Plugins/${plugin_dir}/${plugin_file}.meta"
+    DESTINATION Runtime/Plugins/${plugin_dir})
 
 if(PSX_REVERB_TOOLS)
     add_executable(psxreverb_render tools/render.c tools/wav.c)

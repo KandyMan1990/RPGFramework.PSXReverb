@@ -4,9 +4,9 @@ An Audio Mixer effect for Unity that reproduces the PlayStation's SPU reverb: th
 processing in 16-bit integer maths, and its resampling filter, sample for sample. Any Unity project can use it; it
 depends on nothing else in the RPG Framework.
 
-**Not in the package yet.** The reverb is built and tested, with a command-line tool to hear it, and so is the Unity
-plugin that wraps it, `audioplugin_psxreverb`, which runs in Unity 6.6 on macOS. The built plugin is not yet committed
-to the package; until it is, build it as below and copy it into `Runtime/Plugins/macOS/`.
+The plugin, `audioplugin_psxreverb`, is built for macOS (universal), Windows (x64, Arm64 and x86), Linux (x64) and
+Android (arm64-v8a, armeabi-v7a and x86_64), and committed to `Runtime/Plugins/` by CI. It has run in Unity 6.6 on
+macOS. **iOS is not supported yet**: it is built, but cannot yet register itself with Unity. Consoles need their SDKs.
 
 ---
 
@@ -14,7 +14,9 @@ to the package; until it is, build it as below and copy it into `Runtime/Plugins
 
 - `Native~/` — the reverb in C and the Unity plugin around it, with their tests, built with CMake. Unity ignores
   folders ending in `~`.
-- The repository root is the Unity package. The built plugin goes in `Runtime/Plugins/<platform>/`.
+- The repository root is the Unity package. The built plugins are in `Runtime/Plugins/<platform>/`, each with a
+  `.meta` naming its platform and CPU; the `.meta` files are kept in `Native~/unity/package/` and installed beside the
+  plugins.
 - `Editor/` — the effect's Inspector: the preset by name above Unity's sliders, a note on which settings the preset
   ignores, and a warning whenever the effect plays silence.
 
@@ -34,10 +36,29 @@ ctest --preset debug
 
 `debug` builds with warnings as errors and with AddressSanitizer and UndefinedBehaviorSanitizer where the compiler has
 them; `release` builds optimised. On macOS, `cmake --preset xcode` generates an Xcode project in `Native~/build/xcode`
-for stepping through the code in a debugger, and `macos` builds the plugin as the package carries it — universal, for
-macOS 12 and later — in `Native~/build/macos/audioplugin_psxreverb.bundle`.
+for stepping through the code in a debugger.
 
-After replacing the plugin, restart Unity: it never unloads a native plugin once loaded.
+---
+
+## The plugins
+
+Each platform has a preset that builds the plugin as the package carries it: `macos` (universal, macOS 12 and later),
+`windows-x64`, `windows-arm64` and `windows-x86` (the C runtime linked in), `linux` (x64, the C++ runtime linked in),
+`android-arm64-v8a`, `android-armeabi-v7a` and `android-x86_64` (Android 8.0 and later, 16 KB pages; needs
+`ANDROID_NDK_HOME`) and `ios`. Installing with the package root as the prefix puts the plugin and its `.meta` files in
+place:
+
+```
+cd Native~
+cmake --preset macos
+cmake --build --preset macos
+cmake --install build/macos --prefix ..
+```
+
+After replacing a plugin, restart Unity: it never unloads a native plugin once loaded.
+
+The **Plugins** workflow builds every platform on each push. To update the committed plugins, run it from the Actions
+tab with **Commit the built plugins** ticked: it commits whatever changed in `Runtime/` to the branch it ran on.
 
 ---
 

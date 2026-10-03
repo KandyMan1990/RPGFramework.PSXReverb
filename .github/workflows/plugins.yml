@@ -1,0 +1,110 @@
+name: Plugins
+
+# Builds the Unity plugin for every platform on each push. Run by hand with "commit" ticked, it also commits what it
+# built into Runtime/Plugins, so the package works from a git URL with no build step.
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Commit the built plugins into Runtime/Plugins
+        type: boolean
+        default: false
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { preset: macos, os: macos-latest }
+          - { preset: windows-x64, os: windows-latest }
+          - { preset: windows-x86, os: windows-latest }
+          # On an Arm runner, so the tests run on the CPU the plugin is for.
+          - { preset: windows-arm64, os: windows-11-arm }
+          # The oldest Ubuntu Unity 6.6 supports, so the library asks for no newer glibc than it has.
+          - { preset: linux, os: ubuntu-22.04 }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: Native~
+    steps:
+      - uses: actions/checkout@v5
+      - run: cmake --preset ${{ matrix.preset }}
+      - run: cmake --build --preset ${{ matrix.preset }}
+      - run: ctest --preset ${{ matrix.preset }}
+      - name: What the library exports and the glibc it needs
+        if: matrix.preset == 'linux'
+        run: |
+          nm -D --defined-only build/linux/libaudioplugin_psxreverb.so
+          objdump -T build/linux/libaudioplugin_psxreverb.so | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
+      - run: cmake --install build/${{ matrix.preset }} --config Release --prefix "${{ runner.temp }}/package"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-${{ matrix.preset }}
+          path: ${{ runner.temp }}/package
+
+  android:
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86_64]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Native~
+    steps:
+      - uses: actions/checkout@v5
+      - run: cat "$ANDROID_NDK_HOME/source.properties"
+      - run: cmake --preset android-${{ matrix.abi }}
+      - run: cmake --build --preset android-${{ matrix.abi }}
+      - name: Every segment aligned to 16 KB pages
+        run: |
+          readelf=$(find "$ANDROID_NDK_HOME/toolchains" -name llvm-readelf -type f | head -1)
+          "$readelf" -lW build/android-${{ matrix.abi }}/libaudioplugin_psxreverb.so | awk '$1 == "LOAD" { print $NF }' | tee alignments
+          python3 -c "import sys; a = [int(x, 16) for x in open('alignments')]; sys.exit(0 if a and min(a) >= 16384 else 1)"
+      - run: cmake --install build/android-${{ matrix.abi }} --prefix "${{ runner.temp }}/package"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin-android-${{ matrix.abi }}
+          path: ${{ runner.temp }}/package
+
+  # Built to prove it builds; not committed until it can register itself with Unity (5e).
+  ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: Native~
+    steps:
+      - uses: actions/checkout@v5
+      - run: cmake --preset ios
+      - run: cmake --build --preset ios
+      - run: cmake --install build/ios --prefix "${{ runner.temp }}/package"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios
+          path: ${{ runner.temp }}/package
+
+  commit:
+    if: github.event_name == 'workflow_dispatch' && inputs.commit
+    needs: [desktop, android, ios]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: plugin-*
+          merge-multiple: true
+          path: .
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A Runtime Runtime.meta
+          if git diff --cached --quiet; then
+            echo "The plugins are unchanged."
+            exit 0
+          fi
+          git commit -m "Update the built plugins" -m "Built by the Plugins workflow from ${GITHUB_SHA::7}."
+          git push

@@ -57,6 +57,126 @@
         "lhs": "${hostSystemName}",
         "rhs": "Darwin"
       }
+    },
+    {
+      "name": "windows",
+      "hidden": true,
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
+      },
+      "displayName": "A Windows plugin: release, with the C runtime linked in so a player needs no redistributable",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PSX_REVERB_WARNINGS_AS_ERRORS": "ON",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded"
+      }
+    },
+    {
+      "name": "windows-x64",
+      "inherits": "windows",
+      "displayName": "The Windows plugin for x64",
+      "binaryDir": "${sourceDir}/build/windows-x64",
+      "architecture": {
+        "value": "x64",
+        "strategy": "set"
+      }
+    },
+    {
+      "name": "windows-arm64",
+      "inherits": "windows",
+      "displayName": "The Windows plugin for ARM64",
+      "binaryDir": "${sourceDir}/build/windows-arm64",
+      "architecture": {
+        "value": "ARM64",
+        "strategy": "set"
+      }
+    },
+    {
+      "name": "windows-x86",
+      "inherits": "windows",
+      "displayName": "The Windows plugin for Win32",
+      "binaryDir": "${sourceDir}/build/windows-x86",
+      "architecture": {
+        "value": "Win32",
+        "strategy": "set"
+      }
+    },
+    {
+      "name": "linux",
+      "displayName": "The Linux plugin: release, x86_64, with the C++ runtime linked in",
+      "binaryDir": "${sourceDir}/build/linux",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PSX_REVERB_WARNINGS_AS_ERRORS": "ON"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "android",
+      "hidden": true,
+      "displayName": "An Android plugin: Android 8.0 (API 26) and later, as Unity 6.6's players are",
+      "toolchainFile": "$env{ANDROID_NDK_HOME}/build/cmake/android.toolchain.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PSX_REVERB_WARNINGS_AS_ERRORS": "ON",
+        "PSX_REVERB_TESTS": "OFF",
+        "PSX_REVERB_TOOLS": "OFF",
+        "ANDROID_PLATFORM": "android-26",
+        "ANDROID_STL": "c++_static",
+        "ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES": "ON"
+      }
+    },
+    {
+      "name": "android-arm64-v8a",
+      "inherits": "android",
+      "displayName": "The Android plugin for arm64-v8a",
+      "binaryDir": "${sourceDir}/build/android-arm64-v8a",
+      "cacheVariables": {
+        "ANDROID_ABI": "arm64-v8a"
+      }
+    },
+    {
+      "name": "android-armeabi-v7a",
+      "inherits": "android",
+      "displayName": "The Android plugin for armeabi-v7a",
+      "binaryDir": "${sourceDir}/build/android-armeabi-v7a",
+      "cacheVariables": {
+        "ANDROID_ABI": "armeabi-v7a"
+      }
+    },
+    {
+      "name": "android-x86_64",
+      "inherits": "android",
+      "displayName": "The Android plugin for x86_64",
+      "binaryDir": "${sourceDir}/build/android-x86_64",
+      "cacheVariables": {
+        "ANDROID_ABI": "x86_64"
+      }
+    },
+    {
+      "name": "ios",
+      "displayName": "The iOS plugin: a static library, arm64, iOS 15 and later as Unity 6.6's players are",
+      "binaryDir": "${sourceDir}/build/ios",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "PSX_REVERB_WARNINGS_AS_ERRORS": "ON",
+        "PSX_REVERB_TESTS": "OFF",
+        "PSX_REVERB_TOOLS": "OFF",
+        "CMAKE_SYSTEM_NAME": "iOS",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0"
+      }
     }
   ],
   "buildPresets": [
@@ -73,6 +193,46 @@
     {
       "name": "macos",
       "configurePreset": "macos",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-x64",
+      "configurePreset": "windows-x64",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-arm64",
+      "configurePreset": "windows-arm64",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-x86",
+      "configurePreset": "windows-x86",
+      "configuration": "Release"
+    },
+    {
+      "name": "linux",
+      "configurePreset": "linux",
+      "configuration": "Release"
+    },
+    {
+      "name": "android-arm64-v8a",
+      "configurePreset": "android-arm64-v8a",
+      "configuration": "Release"
+    },
+    {
+      "name": "android-armeabi-v7a",
+      "configurePreset": "android-armeabi-v7a",
+      "configuration": "Release"
+    },
+    {
+      "name": "android-x86_64",
+      "configurePreset": "android-x86_64",
+      "configuration": "Release"
+    },
+    {
+      "name": "ios",
+      "configurePreset": "ios",
       "configuration": "Release"
     }
   ],
@@ -96,6 +256,38 @@
     {
       "name": "macos",
       "configurePreset": "macos",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-x64",
+      "configurePreset": "windows-x64",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-arm64",
+      "configurePreset": "windows-arm64",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-x86",
+      "configurePreset": "windows-x86",
+      "configuration": "Release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux",
+      "configurePreset": "linux",
       "configuration": "Release",
       "output": {
         "outputOnFailure": true
