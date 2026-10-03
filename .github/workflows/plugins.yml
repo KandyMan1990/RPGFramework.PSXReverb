@@ -60,9 +60,8 @@ jobs:
       - run: cmake --build --preset android-${{ matrix.abi }}
       - name: Every segment aligned to 16 KB pages
         run: |
-          readelf=$(find "$ANDROID_NDK_HOME/toolchains" -name llvm-readelf -type f | head -1)
-          "$readelf" -lW build/android-${{ matrix.abi }}/libaudioplugin_psxreverb.so | awk '$1 == "LOAD" { print $NF }' | tee alignments
-          python3 -c "import sys; a = [int(x, 16) for x in open('alignments')]; sys.exit(0 if a and min(a) >= 16384 else 1)"
+          readelf -lW build/android-${{ matrix.abi }}/libaudioplugin_psxreverb.so | awk '$1 == "LOAD" { print $NF }' | tee alignments
+          python3 -c "import sys; a = [int(x, 16) for x in open('alignments')]; sys.exit(0 if a and min(a) >= 16384 else 'no LOAD segment, or one aligned to less than 16 KB')"
       - run: cmake --install build/android-${{ matrix.abi }} --prefix "${{ runner.temp }}/package"
       - uses: actions/upload-artifact@v4
         with:
