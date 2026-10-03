@@ -10,12 +10,14 @@
 _Static_assert((-1 >> 1) == -1, "right-shifting a negative value must be an arithmetic shift");
 _Static_assert(INT_MAX >= 2147483647, "int must be at least 32 bits");
 
-_Static_assert(PSX_REVERB_OFF == REVERB_MODE_OFF && PSX_REVERB_ROOM == REVERB_MODE_ROOM &&
-                   PSX_REVERB_STUDIO_A == REVERB_MODE_STUDIO_A && PSX_REVERB_STUDIO_B == REVERB_MODE_STUDIO_B &&
-                   PSX_REVERB_STUDIO_C == REVERB_MODE_STUDIO_C && PSX_REVERB_HALL == REVERB_MODE_HALL &&
-                   PSX_REVERB_SPACE == REVERB_MODE_SPACE && PSX_REVERB_ECHO == REVERB_MODE_ECHO &&
-                   PSX_REVERB_DELAY == REVERB_MODE_DELAY && PSX_REVERB_PIPE == REVERB_MODE_PIPE &&
-                   PSX_REVERB_PRESETS == REVERB_MODE_COUNT,
+// The two enums are different types, which GCC and MSVC refuse to compare without a cast.
+_Static_assert((int)PSX_REVERB_OFF == (int)REVERB_MODE_OFF && (int)PSX_REVERB_ROOM == (int)REVERB_MODE_ROOM &&
+                   (int)PSX_REVERB_STUDIO_A == (int)REVERB_MODE_STUDIO_A &&
+                   (int)PSX_REVERB_STUDIO_B == (int)REVERB_MODE_STUDIO_B &&
+                   (int)PSX_REVERB_STUDIO_C == (int)REVERB_MODE_STUDIO_C &&
+                   (int)PSX_REVERB_HALL == (int)REVERB_MODE_HALL && (int)PSX_REVERB_SPACE == (int)REVERB_MODE_SPACE &&
+                   (int)PSX_REVERB_ECHO == (int)REVERB_MODE_ECHO && (int)PSX_REVERB_DELAY == (int)REVERB_MODE_DELAY &&
+                   (int)PSX_REVERB_PIPE == (int)REVERB_MODE_PIPE && (int)PSX_REVERB_PRESETS == (int)REVERB_MODE_COUNT,
                "the public presets are the reverb's own modes");
 
 struct psx_reverb

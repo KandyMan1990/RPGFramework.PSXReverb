@@ -64,7 +64,7 @@ struct Instance
     explicit Instance(uint32_t rate)
     {
         std::memset(&state, 0, sizeof(state));
-        state.structsize = sizeof(state);
+        state.structsize = static_cast<UInt32>(sizeof(state));
         state.samplerate = rate;
         state.dspbuffersize = 1024;
         state.hostapiversion = UNITY_AUDIO_PLUGIN_API_VERSION;
@@ -206,7 +206,10 @@ void its_parameters_are_the_consoles()
     {
         const char *name;
         float min, max, defaultval;
-    } expected[] = {{"Preset", 0, 9, 4}, {"Depth", 0, 127, 40}, {"Delay", 1, 127, 127}, {"Feedback", 0, 127, 127}};
+    } expected[] = {{"Preset", 0.0f, 9.0f, 4.0f},
+                    {"Depth", 0.0f, 127.0f, 40.0f},
+                    {"Delay", 1.0f, 127.0f, 127.0f},
+                    {"Feedback", 0.0f, 127.0f, 127.0f}};
     CHECK_EQ(4, effect->numparameters);
     for (int i = 0; i < 4; i++)
     {
