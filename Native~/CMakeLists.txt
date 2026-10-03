@@ -87,6 +87,11 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT PSX_REVERB_SANITIZE)
     target_link_options(audioplugin_psxreverb PRIVATE -static-libstdc++ -static-libgcc)
 endif()
+if(MSVC)
+    # The linker stamps the time into a library, so every commit run would replace the Windows plugins unchanged;
+    # /Brepro stamps a hash of the contents instead.
+    target_link_options(audioplugin_psxreverb PRIVATE /Brepro)
+endif()
 if(ANDROID)
     # Google Play requires native libraries aligned to 16 KB pages from Android 15.
     target_link_options(audioplugin_psxreverb PRIVATE -Wl,-z,max-page-size=16384)
@@ -130,10 +135,12 @@ if(IOS)
             -Wl,-exported_symbol,${ios_entry_point} -o "${slice}" "$<TARGET_OBJECTS:audioplugin_psxreverb>")
         list(APPEND ios_slices "${slice}")
     endforeach()
+    # -D leaves out the times and owners an archive records, so an unchanged library builds to the same bytes and the
+    # workflow's commit run finds nothing to commit.
     add_custom_command(OUTPUT "${ios_archive}"
         ${ios_prelink}
         COMMAND "${CMAKE_COMMAND}" -E rm -f "${ios_archive}"
-        COMMAND xcrun libtool -static -o "${ios_archive}" ${ios_slices}
+        COMMAND xcrun libtool -static -D -o "${ios_archive}" ${ios_slices}
         DEPENDS "$<TARGET_OBJECTS:audioplugin_psxreverb>"
         COMMAND_EXPAND_LISTS VERBATIM)
     add_custom_target(audioplugin_psxreverb_archive ALL DEPENDS "${ios_archive}")
