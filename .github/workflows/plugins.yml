@@ -68,20 +68,36 @@ jobs:
           name: plugin-android-${{ matrix.abi }}
           path: ${{ runner.temp }}/package
 
-  # Built to prove it builds; not committed until it can register itself with Unity (5e).
   ios:
+    strategy:
+      fail-fast: false
+      matrix:
+        # The platform each object must be marked for: 2 is iOS, 7 the iOS Simulator.
+        include:
+          - { preset: ios, platform: 2 }
+          - { preset: ios-simulator, platform: 7 }
     runs-on: macos-latest
     defaults:
       run:
         working-directory: Native~
     steps:
       - uses: actions/checkout@v5
-      - run: cmake --preset ios
-      - run: cmake --build --preset ios
-      - run: cmake --install build/ios --prefix "${{ runner.temp }}/package"
+      - run: cmake --preset ${{ matrix.preset }}
+      - run: cmake --build --preset ${{ matrix.preset }}
+      - name: The entry point alone is global, and every CPU is marked for its platform
+        run: |
+          library=build/${{ matrix.preset }}/libaudioplugin_psxreverb.a
+          names=$(nm -gUj -arch all "$library" | grep '^_' | sort -u)
+          echo "$names"
+          test "$names" = "_psx_reverb_get_audio_effect_definitions"
+          for arch in $(lipo -archs "$library"); do
+            otool -arch "$arch" -l "$library" | grep -A2 LC_BUILD_VERSION | grep -q "platform ${{ matrix.platform }}$" \
+              || { echo "$arch is not marked for platform ${{ matrix.platform }}"; exit 1; }
+          done
+      - run: cmake --install build/${{ matrix.preset }} --prefix "${{ runner.temp }}/package"
       - uses: actions/upload-artifact@v4
         with:
-          name: ios
+          name: plugin-${{ matrix.preset }}
           path: ${{ runner.temp }}/package
 
   commit:

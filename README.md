@@ -4,9 +4,14 @@ An Audio Mixer effect for Unity that reproduces the PlayStation's SPU reverb: th
 processing in 16-bit integer maths, and its resampling filter, sample for sample. Any Unity project can use it; it
 depends on nothing else in the RPG Framework.
 
-The plugin, `audioplugin_psxreverb`, is built for macOS (universal), Windows (x64, Arm64 and x86), Linux (x64) and
-Android (arm64-v8a, armeabi-v7a and x86_64), and committed to `Runtime/Plugins/` by CI. It has run in Unity 6.6 on
-macOS. **iOS is not supported yet**: it is built, but cannot yet register itself with Unity. Consoles need their SDKs.
+The plugin, `audioplugin_psxreverb`, is built for macOS (universal), Windows (x64, Arm64 and x86), Linux (x64),
+Android (arm64-v8a, armeabi-v7a and x86_64) and iOS (devices, and the Simulator on Apple silicon and Intel Macs), and
+committed to `Runtime/Plugins/` by CI. It has run in Unity 6.6 on macOS, in the iOS Simulator with either Xcode
+project type, and on Android 15 with 16 KB pages. Consoles need their SDKs.
+
+On iOS the plugin registers itself with Unity as the app starts, in `Runtime/Plugins/iOS/PSXReverbRegistration.mm`, with
+nothing to add to the Xcode project. **Unity as a Library is not supported**: it starts Unity without the launch step
+the registration waits for, so the mixer would report that PSX Reverb cannot be found.
 
 ---
 
@@ -45,7 +50,7 @@ for stepping through the code in a debugger.
 Each platform has a preset that builds the plugin as the package carries it: `macos` (universal, macOS 12 and later),
 `windows-x64`, `windows-arm64` and `windows-x86` (the C runtime linked in), `linux` (x64, the C++ runtime linked in),
 `android-arm64-v8a`, `android-armeabi-v7a` and `android-x86_64` (Android 8.0 and later, 16 KB pages; needs
-`ANDROID_NDK_HOME`) and `ios`. Installing with the package root as the prefix puts the plugin and its `.meta` files in
+`ANDROID_NDK_HOME`), `ios` and `ios-simulator` (iOS 15 and later). Installing with the package root as the prefix puts the plugin and its `.meta` files in
 place:
 
 ```

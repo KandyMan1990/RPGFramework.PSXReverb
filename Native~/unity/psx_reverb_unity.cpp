@@ -234,8 +234,16 @@ UnityAudioEffectDefinition make_definition()
 }
 } // namespace
 
-extern "C" UNITY_AUDIODSP_EXPORT_API int AUDIO_CALLING_CONVENTION
-UnityGetAudioEffectDefinitions(UnityAudioEffectDefinition ***definitions)
+// Unity finds a library's effects by Unity's name. iOS links every plugin into the app itself, where two functions of
+// one name collide, so there the function has a name of its own, which the registration in unity/ios hands to Unity.
+#ifdef PSX_REVERB_STATIC_PLUGIN
+#define ENTRY_POINT psx_reverb_get_audio_effect_definitions
+extern "C" UNITY_AUDIODSP_EXPORT_API int AUDIO_CALLING_CONVENTION ENTRY_POINT(UnityAudioEffectDefinition ***definitions);
+#else
+#define ENTRY_POINT UnityGetAudioEffectDefinitions
+#endif
+
+extern "C" UNITY_AUDIODSP_EXPORT_API int AUDIO_CALLING_CONVENTION ENTRY_POINT(UnityAudioEffectDefinition ***definitions)
 {
     static UnityAudioEffectDefinition definition = make_definition();
     static UnityAudioEffectDefinition *list[] = {&definition};

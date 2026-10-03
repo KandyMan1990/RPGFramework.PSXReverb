@@ -63,9 +63,10 @@ psx_reverb_configure(psxreverb_core)
 # The Unity plugin. Unity loads a library whose name begins audioplugin, or libaudioplugin where a platform's libraries
 # take that prefix: a bundle on macOS, and a static library on iOS, which cannot load one.
 if(IOS)
-    # A static library carries no other library with it, so the core is built into it.
-    add_library(audioplugin_psxreverb STATIC unity/psx_reverb_unity.cpp ${PSX_REVERB_CORE_SOURCES})
+    # A static library carries no other library with it, so the core is built into it; the archive is made below.
+    add_library(audioplugin_psxreverb OBJECT unity/psx_reverb_unity.cpp ${PSX_REVERB_CORE_SOURCES})
     target_include_directories(audioplugin_psxreverb PRIVATE include)
+    target_compile_definitions(audioplugin_psxreverb PRIVATE PSX_REVERB_STATIC_PLUGIN)
 else()
     add_library(audioplugin_psxreverb MODULE unity/psx_reverb_unity.cpp)
     target_link_libraries(audioplugin_psxreverb PRIVATE psxreverb_core)
@@ -109,10 +110,54 @@ if(APPLE AND NOT IOS)
 endif()
 psx_reverb_configure(audioplugin_psxreverb)
 
+if(IOS)
+    # An app links every static library into itself, where two global names alike collide, and an archive leaves every
+    # name in it global, hidden or not. So each CPU's objects are first linked into one object that keeps the entry
+    # point alone global, and those are archived.
+    set(ios_entry_point _psx_reverb_get_audio_effect_definitions)
+    set(ios_archive "${CMAKE_CURRENT_BINARY_DIR}/libaudioplugin_psxreverb.a")
+    if(CMAKE_OSX_SYSROOT MATCHES "[Ss]imulator")
+        set(ios_simulator -simulator)
+    endif()
+    set(ios_prelink)
+    set(ios_slices)
+    foreach(arch IN LISTS CMAKE_OSX_ARCHITECTURES)
+        set(slice "${CMAKE_CURRENT_BINARY_DIR}/audioplugin_psxreverb_${arch}.o")
+        # Through the compiler, which marks the object as for a device or for the Simulator; the linker alone drops
+        # the mark from objects built for more than one CPU, and Xcode then has to guess.
+        list(APPEND ios_prelink COMMAND xcrun --sdk ${CMAKE_OSX_SYSROOT} clang++
+            -target ${arch}-apple-ios${CMAKE_OSX_DEPLOYMENT_TARGET}${ios_simulator} -r -nostdlib
+            -Wl,-exported_symbol,${ios_entry_point} -o "${slice}" "$<TARGET_OBJECTS:audioplugin_psxreverb>")
+        list(APPEND ios_slices "${slice}")
+    endforeach()
+    add_custom_command(OUTPUT "${ios_archive}"
+        ${ios_prelink}
+        COMMAND "${CMAKE_COMMAND}" -E rm -f "${ios_archive}"
+        COMMAND xcrun libtool -static -o "${ios_archive}" ${ios_slices}
+        DEPENDS "$<TARGET_OBJECTS:audioplugin_psxreverb>"
+        COMMAND_EXPAND_LISTS VERBATIM)
+    add_custom_target(audioplugin_psxreverb_archive ALL DEPENDS "${ios_archive}")
+
+    # The registration Unity copies into a game's Xcode project, linked here against the archive, so a name the two
+    # disagree on fails this build rather than a game's. Unity's own function is left to the app.
+    enable_language(OBJCXX)
+    add_library(psxreverb_ios_registration SHARED unity/ios/PSXReverbRegistration.mm)
+    target_compile_options(psxreverb_ios_registration PRIVATE -fobjc-arc)
+    target_link_libraries(psxreverb_ios_registration PRIVATE "${ios_archive}" "-framework Foundation" objc)
+    target_link_options(psxreverb_ios_registration PRIVATE "LINKER:-U,_UnityRegisterAudioPlugin")
+    add_dependencies(psxreverb_ios_registration audioplugin_psxreverb_archive)
+    psx_reverb_configure(psxreverb_ios_registration)
+endif()
+
 # cmake --install with the package root as its prefix puts the plugin where the package carries it, with the .meta files
 # that tell Unity which platform and CPU it is for, kept under unity/package.
 if(IOS)
-    set(plugin_dirs iOS)
+    # A game's Xcode project builds for devices or for the Simulator, and each needs a library of its own.
+    if(CMAKE_OSX_SYSROOT MATCHES "[Ss]imulator")
+        set(plugin_dirs iOS iOS/Simulator)
+    else()
+        set(plugin_dirs iOS iOS/Device)
+    endif()
 elseif(APPLE)
     set(plugin_dirs macOS)
 elseif(ANDROID)
@@ -127,9 +172,15 @@ else()
 endif()
 list(GET plugin_dirs -1 plugin_dir)
 set(package_meta "${CMAKE_CURRENT_SOURCE_DIR}/unity/package")
-install(TARGETS audioplugin_psxreverb
-    LIBRARY DESTINATION Runtime/Plugins/${plugin_dir}
-    ARCHIVE DESTINATION Runtime/Plugins/${plugin_dir})
+if(IOS)
+    install(FILES "${ios_archive}" DESTINATION Runtime/Plugins/${plugin_dir})
+    install(FILES unity/ios/PSXReverbRegistration.mm "${package_meta}/Runtime/Plugins/iOS/PSXReverbRegistration.mm.meta"
+        DESTINATION Runtime/Plugins/iOS)
+else()
+    install(TARGETS audioplugin_psxreverb
+        LIBRARY DESTINATION Runtime/Plugins/${plugin_dir}
+        ARCHIVE DESTINATION Runtime/Plugins/${plugin_dir})
+endif()
 install(FILES "${package_meta}/Runtime.meta" DESTINATION .)
 install(FILES "${package_meta}/Runtime/Plugins.meta" DESTINATION Runtime)
 foreach(dir IN LISTS plugin_dirs)
