@@ -16,7 +16,7 @@ static const char usage[] =
     "  --mode NAME       off, room, studio-a, studio-b, studio-c, hall, space, echo, delay or pipe (studio-c)\n"
     "  --depth N         the reverb's output volume, 0-127 as the console's tools have it (40)\n"
     "  --delay N         echo and delay only: delay time, 1-127 (127)\n"
-    "  --feedback N      echo and delay only: feedback, 0-127 (127 for echo, 0 for delay)\n"
+    "  --feedback N      echo only: feedback, 0-127 (127); delay with feedback is echo\n"
     "  --tail SECONDS    silence added after the input so the reverb can ring out (4)\n"
     "  --wet             the reverb alone, rather than mixed with the input as the console's mixer does\n"
     "\n"
@@ -124,9 +124,15 @@ int main(int argc, char **argv)
         fputs(usage, stderr);
         return 2;
     }
-    if ((delay >= 0 || feedback >= 0) && mode != REVERB_MODE_ECHO && mode != REVERB_MODE_DELAY)
+    if (delay >= 0 && mode != REVERB_MODE_ECHO && mode != REVERB_MODE_DELAY)
     {
-        fprintf(stderr, "psxreverb_render: --delay and --feedback only apply to echo and delay\n");
+        fprintf(stderr, "psxreverb_render: --delay only applies to echo and delay\n");
+        return 2;
+    }
+    // Delay keeps the feedback of 0 its mode starts with, as the public interface does.
+    if (feedback >= 0 && mode != REVERB_MODE_ECHO)
+    {
+        fprintf(stderr, "psxreverb_render: --feedback only applies to echo; delay with feedback is echo\n");
         return 2;
     }
 
