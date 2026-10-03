@@ -1,5 +1,7 @@
 #include "wav.h"
 
+#include "numeric.h"
+
 #include <string.h>
 
 enum
@@ -11,13 +13,14 @@ enum
 
 static uint16_t read16(const uint8_t *bytes)
 {
-    uint16_t value = (uint16_t)(bytes[0] | bytes[1] << 8);
+    const uint16_t value = (uint16_t)(bytes[0] | bytes[1] << 8);
     return value;
 }
 
 static uint32_t read32(const uint8_t *bytes)
 {
-    uint32_t value = (uint32_t)bytes[0] | (uint32_t)bytes[1] << 8 | (uint32_t)bytes[2] << 16 | (uint32_t)bytes[3] << 24;
+    const uint32_t value =
+        (uint32_t)bytes[0] | (uint32_t)bytes[1] << 8 | (uint32_t)bytes[2] << 16 | (uint32_t)bytes[3] << 24;
     return value;
 }
 
@@ -38,7 +41,7 @@ static void write32(uint8_t *bytes, uint32_t value)
 // Chunks are padded to an even length.
 static bool skip(FILE *file, uint32_t size)
 {
-    bool skipped = fseek(file, (long)size + (long)(size & 1), SEEK_CUR) == 0;
+    const bool skipped = fseek(file, (long)size + (long)(size & 1), SEEK_CUR) == 0;
     return skipped;
 }
 
@@ -73,12 +76,12 @@ bool wav_open(wav_reader *reader, const char *path, char *error, size_t error_si
         {
             return fail(reader, error, error_size, path, "has no samples");
         }
-        uint32_t size = read32(header + 4);
+        const uint32_t size = read32(header + 4);
 
         if (memcmp(header, "fmt ", 4) == 0)
         {
             uint8_t format[40] = {0};
-            uint32_t wanted = size < sizeof(format) ? size : (uint32_t)sizeof(format);
+            const uint32_t wanted = size < sizeof(format) ? size : (uint32_t)sizeof(format);
             if (size < 16 || fread(format, 1, wanted, reader->file) != wanted || !skip(reader->file, size - wanted))
             {
                 return fail(reader, error, error_size, path, "has a broken format chunk");
@@ -95,9 +98,9 @@ bool wav_open(wav_reader *reader, const char *path, char *error, size_t error_si
             reader->bits = read16(format + 14);
             reader->is_float = tag == FORMAT_FLOAT;
 
-            bool integer = tag == FORMAT_PCM &&
-                           (reader->bits == 8 || reader->bits == 16 || reader->bits == 24 || reader->bits == 32);
-            bool floating = tag == FORMAT_FLOAT && reader->bits == 32;
+            const bool integer = tag == FORMAT_PCM &&
+                                 (reader->bits == 8 || reader->bits == 16 || reader->bits == 24 || reader->bits == 32);
+            const bool floating = tag == FORMAT_FLOAT && reader->bits == 32;
             if (!integer && !floating)
             {
                 return fail(reader, error, error_size, path,
@@ -131,15 +134,10 @@ static int16_t decode(const uint8_t *bytes, uint16_t bits, bool is_float)
     int32_t value;
     if (is_float)
     {
-        uint32_t raw = read32(bytes);
+        const uint32_t raw = read32(bytes);
         float sample;
         memcpy(&sample, &raw, sizeof(sample));
-        float scaled = sample * 32768.0f;
-        // A NaN is never equal to itself.
-        value = scaled != scaled         ? 0
-                : scaled <= -32768.0f    ? INT16_MIN
-                : scaled >= 32767.0f     ? INT16_MAX
-                                         : (int32_t)(scaled + (scaled < 0 ? -0.5f : 0.5f));
+        value = float_to16(sample);
     }
     else if (bits == 8)
     {
@@ -158,26 +156,26 @@ static int16_t decode(const uint8_t *bytes, uint16_t bits, bool is_float)
     }
     else
     {
-        uint32_t raw = read32(bytes);
+        const uint32_t raw = read32(bytes);
         value = (int32_t)(raw >> 16);
         value -= value >= 0x8000 ? 0x10000 : 0;
     }
-    int16_t sample = (int16_t)value;
+    const int16_t sample = (int16_t)value;
     return sample;
 }
 
 size_t wav_read_stereo(wav_reader *reader, int16_t *frames, size_t count)
 {
     static uint8_t buffer[64 * 1024];
-    size_t per_read = sizeof(buffer) / reader->block_align;
+    const size_t per_read = sizeof(buffer) / reader->block_align;
     size_t done = 0;
     while (done < count && reader->frames_left > 0)
     {
         size_t wanted = count - done;
         wanted = wanted < per_read ? wanted : per_read;
         wanted = wanted < reader->frames_left ? wanted : reader->frames_left;
-        size_t got = fread(buffer, reader->block_align, wanted, reader->file);
-        size_t bytes_per_sample = reader->bits / 8u;
+        const size_t got = fread(buffer, reader->block_align, wanted, reader->file);
+        const size_t bytes_per_sample = reader->bits / 8u;
         for (size_t i = 0; i < got; i++)
         {
             const uint8_t *frame = buffer + i * reader->block_align;
@@ -219,7 +217,7 @@ bool wav_write_header(FILE *file, uint32_t sample_rate, uint32_t frames)
     write16(header + 34, 16);
     memcpy(header + 36, "data", 4);
     write32(header + 40, frames * 4);
-    bool written = fwrite(header, 1, sizeof(header), file) == sizeof(header);
+    const bool written = fwrite(header, 1, sizeof(header), file) == sizeof(header);
     return written;
 }
 
@@ -229,7 +227,7 @@ bool wav_write_stereo(FILE *file, const int16_t *frames, size_t count)
     size_t done = 0;
     while (done < count)
     {
-        size_t batch = count - done < sizeof(buffer) / 4 ? count - done : sizeof(buffer) / 4;
+        const size_t batch = count - done < sizeof(buffer) / 4 ? count - done : sizeof(buffer) / 4;
         for (size_t i = 0; i < batch * 2; i++)
         {
             write16(buffer + i * 2, (uint16_t)frames[done * 2 + i]);

@@ -1,24 +1,14 @@
 #include "host.h"
 
+#include "numeric.h"
+
 #include <assert.h>
 #include <string.h>
-
-static int16_t to16(float sample)
-{
-    float scaled = sample * 32768.0f;
-    // A NaN is never equal to itself. GCC calls the conditional an int, so it is narrowed explicitly after.
-    int32_t rounded = scaled != scaled         ? 0
-                      : scaled <= -32768.0f    ? INT16_MIN
-                      : scaled >= 32767.0f     ? INT16_MAX
-                                               : (int32_t)(scaled + (scaled < 0 ? -0.5f : 0.5f));
-    int16_t value = (int16_t)rounded;
-    return value;
-}
 
 static void enqueue(host_reverb *h, const float frame[2])
 {
     assert(h->queue_count < HOST_QUEUE);
-    uint32_t slot = (h->queue_first + h->queue_count) % HOST_QUEUE;
+    const uint32_t slot = (h->queue_first + h->queue_count) % HOST_QUEUE;
     h->queue[slot][0] = frame[0];
     h->queue[slot][1] = frame[1];
     h->queue_count++;
@@ -88,7 +78,7 @@ void host_reverb_free(host_reverb *h)
 
 static void run_unit(host_reverb *h, const float input[2], float output[2])
 {
-    const int16_t in[2] = {to16(input[0]), to16(input[1])};
+    const int16_t in[2] = {float_to16(input[0]), float_to16(input[1])};
     int16_t wet[2];
     reverb_unit_process(&h->unit, in, wet);
     output[0] = wet[0] / 32768.0f;
@@ -107,13 +97,13 @@ void host_reverb_process(host_reverb *h, const float *input, float *output, size
         }
 
         float reduced[RESAMPLER_MAX_OUTPUTS][2];
-        uint32_t count = resampler_push(&h->to_unit, in, reduced);
+        const uint32_t count = resampler_push(&h->to_unit, in, reduced);
         for (uint32_t r = 0; r < count; r++)
         {
             float wet[2];
             float expanded[RESAMPLER_MAX_OUTPUTS][2];
             run_unit(h, reduced[r], wet);
-            uint32_t made = resampler_push(&h->from_unit, wet, expanded);
+            const uint32_t made = resampler_push(&h->from_unit, wet, expanded);
             for (uint32_t e = 0; e < made; e++)
             {
                 enqueue(h, expanded[e]);
@@ -134,7 +124,7 @@ double host_reverb_added_latency(const host_reverb *h)
     {
         return 0.0;
     }
-    double latency = resampler_delay(&h->to_unit) +
-                     resampler_delay(&h->from_unit) * h->rate / (double)UNIT_RATE + h->primed;
+    const double latency =
+        resampler_delay(&h->to_unit) + resampler_delay(&h->from_unit) * h->rate / (double)UNIT_RATE + h->primed;
     return latency;
 }

@@ -63,7 +63,7 @@ static void chunk(builder *b, const char *id, const void *data, uint32_t size)
 
 static void save(builder *b, const char *path)
 {
-    uint32_t riff_size = (uint32_t)b->size - 8;
+    const uint32_t riff_size = (uint32_t)b->size - 8;
     const uint8_t size[4] = {(uint8_t)(riff_size & 0xFF), (uint8_t)((riff_size >> 8) & 0xFF),
                              (uint8_t)((riff_size >> 16) & 0xFF), (uint8_t)(riff_size >> 24)};
     memcpy(b->bytes + 4, size, 4);
@@ -80,9 +80,9 @@ static void save(builder *b, const char *path)
 static size_t read_all(const char *path, int16_t frames[16], wav_reader *reader)
 {
     char error[256];
-    bool opened = wav_open(reader, path, error, sizeof(error));
+    const bool opened = wav_open(reader, path, error, sizeof(error));
     CHECK(opened);
-    size_t count = opened ? wav_read_stereo(reader, frames, 8) : 0;
+    const size_t count = opened ? wav_read_stereo(reader, frames, 8) : 0;
     wav_close(reader);
     return count;
 }

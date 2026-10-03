@@ -1,5 +1,7 @@
 #include "unit.h"
 
+#include "numeric.h"
+
 #include <string.h>
 
 // The console's 39-tap half-band filter less its zero taps: these 20 sit two samples apart, symmetric about a centre
@@ -7,12 +9,6 @@
 static const int32_t side_taps[20] = {-0x0001, 0x0002,  -0x000A, 0x0023,  -0x0067, 0x010A,  -0x0268,
                                       0x0534,  -0x0B90, 0x2806,  0x2806,  -0x0B90, 0x0534,  -0x0268,
                                       0x010A,  -0x0067, 0x0023,  -0x000A, 0x0002,  -0x0001};
-
-static int16_t saturate16(int32_t value)
-{
-    int16_t saturated = (int16_t)(value < INT16_MIN ? INT16_MIN : value > INT16_MAX ? INT16_MAX : value);
-    return saturated;
-}
 
 // The 39 inputs ending at the newest, filtered: the side taps on every other one, the centre on the 20th back.
 static int16_t downsample(const int16_t history[64], int32_t newest)
@@ -22,7 +18,7 @@ static int16_t downsample(const int16_t history[64], int32_t newest)
     {
         sum += side_taps[tap] * history[(newest + 64 - 38 + 2 * tap) & 63];
     }
-    int16_t sample = saturate16(sum >> 15);
+    const int16_t sample = saturate16(sum >> 15);
     return sample;
 }
 
@@ -35,7 +31,7 @@ static int16_t upsample_between(const int16_t history[32], int32_t newest)
     {
         sum += side_taps[tap] * history[(newest + 32 - 19 + tap) & 31];
     }
-    int16_t sample = saturate16(sum >> 14);
+    const int16_t sample = saturate16(sum >> 14);
     return sample;
 }
 
@@ -54,7 +50,7 @@ void reverb_unit_init(reverb_unit *u)
 // centre tap alone. Either way each filter delays by 19 samples, 38 in all, as measured on the console.
 void reverb_unit_process(reverb_unit *u, const int16_t input[2], int16_t output[2])
 {
-    int32_t p = u->position;
+    const int32_t p = u->position;
     int16_t wet[2];
     u->down[0][p] = input[0];
     u->down[1][p] = input[1];

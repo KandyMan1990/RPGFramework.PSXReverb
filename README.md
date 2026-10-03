@@ -4,21 +4,23 @@ An Audio Mixer effect for Unity that reproduces the PlayStation's SPU reverb: th
 processing in 16-bit integer maths, and its resampling filter, sample for sample. Any Unity project can use it; it
 depends on nothing else in the RPG Framework.
 
-**Not a Unity plugin yet.** The reverb itself is built and tested, with a command-line tool to hear it; the Unity
-plugin that wraps it is still to come.
+**Not in the package yet.** The reverb is built and tested, with a command-line tool to hear it, and so is the Unity
+plugin that wraps it, `audioplugin_psxreverb`; the built plugin is not yet in the package for Unity to load.
 
 ---
 
 ## Layout
 
-- `Native~/` — the reverb in C, with its tests, built with CMake. Unity ignores folders ending in `~`.
+- `Native~/` — the reverb in C and the Unity plugin around it, with their tests, built with CMake. Unity ignores
+  folders ending in `~`.
 - The repository root is the Unity package. The built plugin will live here beside `package.json`.
 
 ---
 
 ## Building and testing
 
-Needs CMake 3.21 or later and a C compiler (Xcode's on macOS, Visual Studio's on Windows, GCC or Clang on Linux).
+Needs CMake 3.21 or later and a C and C++ compiler (Xcode's on macOS, Visual Studio's on Windows, GCC or Clang on
+Linux).
 
 ```
 cd Native~
@@ -56,4 +58,4 @@ later — 0.29 ms at 48 kHz.
 
 ## License
 
-MIT — see `LICENSE.md`.
+MIT — see `LICENSE.md`. `Native~/unity/sdk/AudioPluginInterface.h` is Unity's, under its own MIT licence beside it.

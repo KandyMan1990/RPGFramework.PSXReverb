@@ -17,7 +17,7 @@ static uint32_t greatest_common_divisor(uint32_t a, uint32_t b)
 {
     while (b != 0)
     {
-        uint32_t remainder = a % b;
+        const uint32_t remainder = a % b;
         a = b;
         b = remainder;
     }
@@ -31,7 +31,7 @@ static double bessel_i0(double x)
     double term = 1.0;
     for (int k = 1; k < 500 && term > 1e-16 * sum; k++)
     {
-        double factor = x / (2.0 * k);
+        const double factor = x / (2.0 * k);
         term *= factor * factor;
         sum += term;
     }
@@ -41,7 +41,7 @@ static double bessel_i0(double x)
 bool resampler_init(resampler *r, uint32_t rate_in, uint32_t rate_out)
 {
     memset(r, 0, sizeof(*r));
-    uint32_t divisor = greatest_common_divisor(rate_in, rate_out);
+    const uint32_t divisor = greatest_common_divisor(rate_in, rate_out);
     r->up = rate_out / divisor;
     r->down = rate_in / divisor;
     if (r->up > MAX_PHASES || (r->up + r->down - 1) / r->down > RESAMPLER_MAX_OUTPUTS)
@@ -51,20 +51,20 @@ bool resampler_init(resampler *r, uint32_t rate_in, uint32_t rate_out)
 
     // The reverb holds nothing above 11,025 Hz, so the filter need only keep that flat and reject what would alias or
     // image into it: everything above the lower rate less the band. The transition is half the lower rate wide.
-    double lower = rate_in < rate_out ? rate_in : rate_out;
-    double pass = fmin(11025.0, 0.45 * lower);
-    double stop = lower - pass;
-    double rate_up = (double)r->up * rate_in;
-    double cutoff = (pass + stop) / 2.0 / rate_up;
-    double width = (stop - pass) / rate_up;
-    uint32_t estimate = (uint32_t)ceil((ATTENUATION - 7.95) / (14.36 * width)) + 1;
+    const double lower = rate_in < rate_out ? rate_in : rate_out;
+    const double pass = fmin(11025.0, 0.45 * lower);
+    const double stop = lower - pass;
+    const double rate_up = (double)r->up * rate_in;
+    const double cutoff = (pass + stop) / 2.0 / rate_up;
+    const double width = (stop - pass) / rate_up;
+    const uint32_t estimate = (uint32_t)ceil((ATTENUATION - 7.95) / (14.36 * width)) + 1;
     r->taps = (estimate + r->up - 1) / r->up;
     if (r->taps > MAX_TAPS)
     {
         return false;
     }
 
-    uint32_t length = r->taps * r->up;
+    const uint32_t length = r->taps * r->up;
     r->coefficients = malloc(sizeof(float) * length);
     r->history = calloc(2u * r->taps, sizeof(float));
     if (!r->coefficients || !r->history)
@@ -73,20 +73,20 @@ bool resampler_init(resampler *r, uint32_t rate_in, uint32_t rate_out)
         return false;
     }
 
-    double beta = 0.1102 * (ATTENUATION - 8.7);
-    double centre = (length - 1) / 2.0;
-    double window_scale = bessel_i0(beta);
+    const double beta = 0.1102 * (ATTENUATION - 8.7);
+    const double centre = (length - 1) / 2.0;
+    const double window_scale = bessel_i0(beta);
     double values[MAX_TAPS];
     for (uint32_t phase = 0; phase < r->up; phase++)
     {
         double sum = 0.0;
         for (uint32_t tap = 0; tap < r->taps; tap++)
         {
-            double position = phase + (double)tap * r->up;
-            double offset = position - centre;
-            double sinc = offset == 0.0 ? 2.0 * cutoff : sin(2.0 * PI * cutoff * offset) / (PI * offset);
-            double along = 2.0 * position / (length - 1) - 1.0;
-            double window = bessel_i0(beta * sqrt(fmax(0.0, 1.0 - along * along))) / window_scale;
+            const double position = phase + (double)tap * r->up;
+            const double offset = position - centre;
+            const double sinc = offset == 0.0 ? 2.0 * cutoff : sin(2.0 * PI * cutoff * offset) / (PI * offset);
+            const double along = 2.0 * position / (length - 1) - 1.0;
+            const double window = bessel_i0(beta * sqrt(fmax(0.0, 1.0 - along * along))) / window_scale;
             values[tap] = sinc * window;
             sum += values[tap];
         }
@@ -140,6 +140,6 @@ uint32_t resampler_push(resampler *r, const float input[2], float output[RESAMPL
 
 double resampler_delay(const resampler *r)
 {
-    double delay = ((double)r->taps * r->up - 1.0) / 2.0 / r->up;
+    const double delay = ((double)r->taps * r->up - 1.0) / 2.0 / r->up;
     return delay;
 }

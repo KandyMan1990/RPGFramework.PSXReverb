@@ -1,6 +1,7 @@
 #include "psx_reverb.h"
 
 #include "host.h"
+#include "numeric.h"
 
 #include <limits.h>
 #include <stdlib.h>
@@ -24,12 +25,6 @@ struct psx_reverb
     int delay;
     int feedback;
 };
-
-static int clamp(int value, int low, int high)
-{
-    int clamped = value < low ? low : value > high ? high : value;
-    return clamped;
-}
 
 // The reverb ignores both outside echo and delay. Delay keeps the feedback of 0 its mode starts with.
 static void apply_echo_settings(psx_reverb *r)
@@ -74,7 +69,7 @@ void psx_reverb_destroy(psx_reverb *r)
 
 void psx_reverb_set_preset(psx_reverb *r, int preset)
 {
-    int held = clamp(preset, 0, PSX_REVERB_PRESETS - 1);
+    const int held = clamp(preset, 0, PSX_REVERB_PRESETS - 1);
     if (held == r->preset)
     {
         return;
@@ -86,7 +81,7 @@ void psx_reverb_set_preset(psx_reverb *r, int preset)
 
 void psx_reverb_set_depth(psx_reverb *r, int depth)
 {
-    int16_t volume = (int16_t)(clamp(depth, 0, 127) << 8);
+    const int16_t volume = (int16_t)(clamp(depth, 0, 127) << 8);
     r->host.unit.depth[0] = volume;
     r->host.unit.depth[1] = volume;
 }
@@ -110,7 +105,7 @@ void psx_reverb_process(psx_reverb *r, const float *input, float *output, size_t
 
 uint32_t psx_reverb_version(void)
 {
-    uint32_t version = ((uint32_t)PSX_REVERB_VERSION_MAJOR << 16) | ((uint32_t)PSX_REVERB_VERSION_MINOR << 8) |
-                       (uint32_t)PSX_REVERB_VERSION_PATCH;
+    const uint32_t version = ((uint32_t)PSX_REVERB_VERSION_MAJOR << 16) | ((uint32_t)PSX_REVERB_VERSION_MINOR << 8) |
+                             (uint32_t)PSX_REVERB_VERSION_PATCH;
     return version;
 }

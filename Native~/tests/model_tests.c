@@ -4,6 +4,7 @@
 #include "suites.h"
 #include "unit.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 
 static reverb r;
@@ -15,7 +16,7 @@ static uint64_t fingerprint(const int16_t *values, size_t count)
     uint64_t hash = 0xCBF29CE484222325ull;
     for (size_t i = 0; i < count; i++)
     {
-        uint16_t bits = (uint16_t)values[i];
+        const uint16_t bits = (uint16_t)values[i];
         hash = (hash ^ (bits & 0xFFu)) * 0x100000001B3ull;
         hash = (hash ^ (bits >> 8)) * 0x100000001B3ull;
     }
@@ -109,7 +110,7 @@ void model_tests(void)
     for (int index = 0; index < (int)(sizeof(model_cases) / sizeof(model_cases[0])); index++)
     {
         run(&model_cases[index]);
-        int matches = fingerprint(samples, MODEL_TICKS * 2) == model_cases[index].fingerprint;
+        const bool matches = fingerprint(samples, MODEL_TICKS * 2) == model_cases[index].fingerprint;
         CHECK(matches);
         if (!matches)
         {
@@ -120,7 +121,7 @@ void model_tests(void)
     for (int index = 0; index < (int)(sizeof(model_unit_cases) / sizeof(model_unit_cases[0])); index++)
     {
         run_unit(&model_unit_cases[index]);
-        int matches = fingerprint(samples, MODEL_UNIT_TICKS * 2) == model_unit_cases[index].fingerprint;
+        const bool matches = fingerprint(samples, MODEL_UNIT_TICKS * 2) == model_unit_cases[index].fingerprint;
         CHECK(matches);
         if (!matches)
         {

@@ -1,30 +1,21 @@
 #include "reverb.h"
 
+#include "numeric.h"
+
+#include <stdbool.h>
 #include <string.h>
 
 static int32_t signed_volume(uint16_t raw)
 {
-    int32_t volume = raw >= 0x8000 ? (int32_t)raw - 0x10000 : (int32_t)raw;
+    const int32_t volume = raw >= 0x8000 ? (int32_t)raw - 0x10000 : (int32_t)raw;
     return volume;
-}
-
-static int32_t saturate(int32_t value)
-{
-    int32_t saturated = value < INT16_MIN ? INT16_MIN : value > INT16_MAX ? INT16_MAX : value;
-    return saturated;
 }
 
 // -1.0 has no positive counterpart in 16 bits; the console gives the largest it has.
 static int32_t negate(int32_t volume)
 {
-    int32_t negated = volume == INT16_MIN ? INT16_MAX : -volume;
+    const int32_t negated = volume == INT16_MIN ? INT16_MAX : -volume;
     return negated;
-}
-
-static int clamp(int value, int low, int high)
-{
-    int clamped = value < low ? low : value > high ? high : value;
-    return clamped;
 }
 
 // Every offset is kept within the ring, so no setting can reach outside it. Where the console's own address would
@@ -101,18 +92,18 @@ static int32_t ring_index(const reverb *r, int32_t ahead)
 
 static int32_t ring_read(const reverb *r, int32_t ahead)
 {
-    int32_t sample = r->ring[ring_index(r, ahead)];
+    const int32_t sample = r->ring[ring_index(r, ahead)];
     return sample;
 }
 
 static void ring_write(reverb *r, int32_t ahead, int32_t sample)
 {
-    r->ring[ring_index(r, ahead)] = (int16_t)saturate(sample);
+    r->ring[ring_index(r, ahead)] = saturate16(sample);
 }
 
-static int is_echo_or_delay(const reverb *r)
+static bool is_echo_or_delay(const reverb *r)
 {
-    int result = r->mode == REVERB_MODE_ECHO || r->mode == REVERB_MODE_DELAY;
+    const bool result = r->mode == REVERB_MODE_ECHO || r->mode == REVERB_MODE_DELAY;
     return result;
 }
 
@@ -140,8 +131,8 @@ void reverb_set_delay(reverb *r, int delay)
     r->delay = clamp(delay, 1, 127);
 
     const reverb_registers *preset = &reverb_presets[r->mode].registers;
-    int32_t whole = (r->delay << 13) / 127;
-    int32_t half = (r->delay << 12) / 127;
+    const int32_t whole = (r->delay << 13) / 127;
+    const int32_t half = (r->delay << 12) / 127;
     r->registers.mLSAME = (uint16_t)(whole - preset->dAPF1);
     r->registers.mRSAME = (uint16_t)(half - preset->dAPF2);
     r->registers.mLCOMB1 = (uint16_t)(half + preset->mRCOMB1);
@@ -167,18 +158,18 @@ void reverb_set_feedback(reverb *r, int feedback)
 void reverb_process(reverb *r, const int16_t input[2], int16_t output[2])
 {
     const reverb_taps *t = &r->taps;
-    int32_t hold = 0x8000 - t->iir_volume;
+    const int32_t hold = 0x8000 - t->iir_volume;
 
     // Products are shifted down by 14 and their sum halved, as the console rounds. Shifting each product by 15
     // instead is the same maths but differs in the last bit.
     for (int side = 0; side < 2; side++)
     {
-        int32_t in = (input[side] * t->input_volume[side]) >> 14;
-        int32_t same_in = saturate((((ring_read(r, t->same_feedback[side]) * t->wall_volume) >> 14) + in) >> 1);
-        int32_t diff_in = saturate((((ring_read(r, t->diff_feedback[side]) * t->wall_volume) >> 14) + in) >> 1);
-        int32_t same = saturate(
+        const int32_t in = (input[side] * t->input_volume[side]) >> 14;
+        const int32_t same_in = saturate16((((ring_read(r, t->same_feedback[side]) * t->wall_volume) >> 14) + in) >> 1);
+        const int32_t diff_in = saturate16((((ring_read(r, t->diff_feedback[side]) * t->wall_volume) >> 14) + in) >> 1);
+        const int32_t same = saturate16(
             (((same_in * t->iir_volume) >> 14) + ((ring_read(r, t->same_previous[side]) * hold) >> 14)) >> 1);
-        int32_t diff = saturate(
+        const int32_t diff = saturate16(
             (((diff_in * t->iir_volume) >> 14) + ((ring_read(r, t->diff_previous[side]) * hold) >> 14)) >> 1);
         ring_write(r, t->same_write[side], same);
         ring_write(r, t->diff_write[side], diff);
@@ -189,13 +180,13 @@ void reverb_process(reverb *r, const int16_t input[2], int16_t output[2])
             comb += (ring_read(r, t->comb[tap][side]) * t->comb_volume[tap]) >> 14;
         }
 
-        int32_t apf1_feedback = ring_read(r, t->apf1_feedback[side]);
-        int32_t apf2_feedback = ring_read(r, t->apf2_feedback[side]);
-        int32_t apf1 = saturate((comb + ((apf1_feedback * negate(t->apf1_volume)) >> 14)) >> 1);
-        int32_t apf2 = saturate(
+        const int32_t apf1_feedback = ring_read(r, t->apf1_feedback[side]);
+        const int32_t apf2_feedback = ring_read(r, t->apf2_feedback[side]);
+        const int32_t apf1 = saturate16((comb + ((apf1_feedback * negate(t->apf1_volume)) >> 14)) >> 1);
+        const int32_t apf2 = saturate16(
             apf1_feedback +
             ((((apf1 * t->apf1_volume) >> 14) + ((apf2_feedback * negate(t->apf2_volume)) >> 14)) >> 1));
-        output[side] = (int16_t)saturate(apf2_feedback + ((apf2 * t->apf2_volume) >> 15));
+        output[side] = saturate16(apf2_feedback + ((apf2 * t->apf2_volume) >> 15));
         ring_write(r, t->apf1_write[side], apf1);
         ring_write(r, t->apf2_write[side], apf2);
     }

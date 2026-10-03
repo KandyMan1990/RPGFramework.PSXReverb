@@ -25,7 +25,7 @@ static stereo step(int16_t left)
     const int16_t input[2] = {left, 0};
     int16_t output[2];
     reverb_process(&r, input, output);
-    stereo result = {output[0], output[1]};
+    const stereo result = {output[0], output[1]};
     return result;
 }
 
@@ -35,7 +35,7 @@ static void expect_silence_until(int tick, int from)
     int heard = 0;
     for (int i = from; i < tick; i++)
     {
-        stereo out = step(0);
+        const stereo out = step(0);
         heard |= out.left | out.right;
     }
     CHECK_EQ(0, heard);
@@ -67,7 +67,7 @@ static void every_preset_fits_its_work_area(void)
                                       g->mRCOMB2, g->dLSAME,  g->dRSAME,  g->mLDIFF,  g->mRDIFF,
                                       g->mLCOMB3, g->mRCOMB3, g->mLCOMB4, g->mRCOMB4, g->dLDIFF,
                                       g->dRDIFF,  g->mLAPF1,  g->mRAPF1,  g->mLAPF2,  g->mRAPF2};
-        uint32_t samples = reverb_presets[mode].work_area_bytes / 2;
+        const uint32_t samples = reverb_presets[mode].work_area_bytes / 2;
         for (size_t i = 0; i < sizeof(addresses) / sizeof(addresses[0]); i++)
         {
             CHECK((uint32_t)addresses[i] * 4u < samples);
@@ -154,7 +154,7 @@ static void off_is_silent(void)
     int heard = 0;
     for (int i = 0; i < REVERB_RATE; i++)
     {
-        stereo out = step((int16_t)(i % 2 ? 20000 : -20000));
+        const stereo out = step((int16_t)(i % 2 ? 20000 : -20000));
         heard |= out.left | out.right;
     }
     CHECK_EQ(0, heard);
@@ -179,7 +179,7 @@ static void delay_time_moves_the_echo(void)
     step(0x4000);
     // The same-side write at 4127 and the comb tap at 2069, then the two all-pass stages.
     expect_silence_until((4127 - 2069) * 4 + 8, 1);
-    stereo out = step(0);
+    const stereo out = step(0);
     CHECK_EQ(-16384, out.left);
 }
 
@@ -241,7 +241,7 @@ static void right_crosses_to_left_through_the_different_side(void)
 static void the_ring_wraps_without_moving_the_echo(void)
 {
     reverb_set_mode(&r, REVERB_MODE_DELAY);
-    int start = r.ring_length - 1000;
+    const int start = r.ring_length - 1000;
     for (int i = 0; i < start; i++)
     {
         step(0);
@@ -271,7 +271,7 @@ static void feedback_saturates_rather_than_wraps(void)
     int lowest = INT16_MAX;
     for (int i = 0; i < 3 * COMB_DELAY; i++)
     {
-        stereo out = step(INT16_MIN);
+        const stereo out = step(INT16_MIN);
         if (i >= ECHO_TICK && out.left < lowest)
         {
             lowest = out.left;

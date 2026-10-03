@@ -1,6 +1,7 @@
 #include "check.h"
 #include "host.h"
 #include "psx_reverb.h"
+#include "signal.h"
 #include "suites.h"
 
 static host_reverb expected;
@@ -9,8 +10,7 @@ static void noise_block(uint32_t *seed, float *block, size_t frames)
 {
     for (size_t i = 0; i < frames * 2; i++)
     {
-        *seed = *seed * 1664525u + 1013904223u;
-        block[i] = (float)((int32_t)(*seed >> 16) - 0x8000) / 32768.0f;
+        block[i] = noise(seed);
     }
 }
 

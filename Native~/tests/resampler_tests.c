@@ -6,8 +6,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-static const double PI = 3.14159265358979323846;
-
 // One second of a tone through a resampler, the output's first and last stretch dropped where the filter is filling
 // and emptying. Returns the frames kept, in a buffer the caller frees.
 static float *convert_tone(uint32_t rate_in, uint32_t rate_out, double frequency, size_t *kept)
@@ -19,22 +17,22 @@ static float *convert_tone(uint32_t rate_in, uint32_t rate_out, double frequency
         CHECK(false);
         return NULL;
     }
-    size_t capacity = (size_t)rate_out + RESAMPLER_MAX_OUTPUTS;
+    const size_t capacity = (size_t)rate_out + RESAMPLER_MAX_OUTPUTS;
     float *output = malloc(sizeof(float) * 2 * capacity);
     size_t made = 0;
     for (uint32_t i = 0; i < rate_in; i++)
     {
-        float sample = (float)(0.5 * sin(2.0 * PI * frequency * i / rate_in));
+        const float sample = (float)(0.5 * sin(2.0 * PI * frequency * i / rate_in));
         const float frame[2] = {sample, sample};
         float out[RESAMPLER_MAX_OUTPUTS][2];
-        uint32_t count = resampler_push(&r, frame, out);
+        const uint32_t count = resampler_push(&r, frame, out);
         for (uint32_t c = 0; c < count && made < capacity; c++, made++)
         {
             output[2 * made] = out[c][0];
             output[2 * made + 1] = out[c][1];
         }
     }
-    size_t settle = (size_t)(2.0 * resampler_delay(&r) * rate_out / rate_in) + 16;
+    const size_t settle = (size_t)(2.0 * resampler_delay(&r) * rate_out / rate_in) + 16;
     resampler_free(&r);
     *kept = made - 2 * settle;
     for (size_t i = 0; i < *kept * 2; i++)
@@ -74,20 +72,20 @@ static void the_band_is_flat(void)
     {
         for (size_t f = 0; f < sizeof(frequencies) / sizeof(frequencies[0]); f++)
         {
-            double lower = rates[r] < 44100 ? rates[r] : 44100;
+            const double lower = rates[r] < 44100 ? rates[r] : 44100;
             if (frequencies[f] > fmin(11025.0, 0.45 * lower))
             {
                 continue;
             }
             for (int way = 0; way < 2; way++)
             {
-                uint32_t in = way ? 44100 : rates[r];
-                uint32_t out = way ? rates[r] : 44100;
+                const uint32_t in = way ? 44100 : rates[r];
+                const uint32_t out = way ? rates[r] : 44100;
                 size_t kept;
                 float *output = convert_tone(in, out, frequencies[f], &kept);
                 if (output)
                 {
-                    double decibels = 20.0 * log10(tone_amplitude(output, kept, frequencies[f], out) / 0.5);
+                    const double decibels = 20.0 * log10(tone_amplitude(output, kept, frequencies[f], out) / 0.5);
                     CHECK(fabs(decibels) < 0.01);
                     free(output);
                 }

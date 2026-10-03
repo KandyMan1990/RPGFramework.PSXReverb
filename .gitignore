@@ -100,6 +100,9 @@ InitTestScene*.unity*
 
 .DS_Store
 
+# Rider's project folder, at the root or in Native~ depending on which Rider opened
+.idea/
+
 # Native build output
 /Native~/build/
 CMakeUserPresets.json

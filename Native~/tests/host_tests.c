@@ -1,10 +1,9 @@
 #include "check.h"
 #include "host.h"
+#include "signal.h"
 #include "suites.h"
 
 #include <math.h>
-
-static const double PI = 3.14159265358979323846;
 
 static host_reverb h;
 static reverb_unit u;
@@ -17,13 +16,6 @@ static void start(uint32_t rate, int mode)
     h.unit.depth[1] = INT16_MAX;
 }
 
-static float noise(uint32_t *seed)
-{
-    *seed = *seed * 1664525u + 1013904223u;
-    float sample = (float)((int32_t)(*seed >> 16) - 0x8000) / 32768.0f;
-    return sample;
-}
-
 // At 44.1 kHz nothing is resampled, so the float path is the unit's own, sample for sample.
 static void at_44100_the_host_is_the_unit(void)
 {
@@ -33,7 +25,7 @@ static void at_44100_the_host_is_the_unit(void)
     u.depth[0] = INT16_MAX;
     u.depth[1] = INT16_MAX;
     uint32_t seed = 1;
-    int differ = 0;
+    bool differ = false;
     for (int i = 0; i < 2 * 44100; i++)
     {
         float frame[2] = {noise(&seed), noise(&seed)};
@@ -41,9 +33,10 @@ static void at_44100_the_host_is_the_unit(void)
         int16_t expected[2];
         reverb_unit_process(&u, in, expected);
         host_reverb_process(&h, frame, frame, 1);
-        differ |= (int16_t)(frame[0] * 32768.0f) != expected[0] || (int16_t)(frame[1] * 32768.0f) != expected[1];
+        differ = differ || (int16_t)(frame[0] * 32768.0f) != expected[0] ||
+                 (int16_t)(frame[1] * 32768.0f) != expected[1];
     }
-    CHECK_EQ(0, differ);
+    CHECK(!differ);
     host_reverb_free(&h);
 }
 
@@ -55,14 +48,14 @@ static void delay_returns_the_tone_on_time(void)
     static const uint32_t rates[] = {44100, 48000, 96000, 32000, 22050};
     for (size_t r = 0; r < sizeof(rates) / sizeof(rates[0]); r++)
     {
-        uint32_t rate = rates[r];
+        const uint32_t rate = rates[r];
         start(rate, REVERB_MODE_DELAY);
-        double arrival = (2.0 * 16368 + 38) / 44100.0 * rate + host_reverb_added_latency(&h);
-        size_t frames = (size_t)arrival + rate / 5;
+        const double arrival = (2.0 * 16368 + 38) / 44100.0 * rate + host_reverb_added_latency(&h);
+        const size_t frames = (size_t)arrival + rate / 5;
         double early = 0.0, error = 0.0;
         for (size_t i = 0; i < frames; i++)
         {
-            float tone = (float)(0.25 * sin(2.0 * PI * 1000.0 * (double)i / rate));
+            const float tone = (float)(0.25 * sin(2.0 * PI * 1000.0 * (double)i / rate));
             float frame[2] = {tone, tone};
             host_reverb_process(&h, frame, frame, 1);
             if ((double)i < arrival - 100.0)
@@ -71,7 +64,7 @@ static void delay_returns_the_tone_on_time(void)
             }
             else if ((double)i > arrival + 200.0)
             {
-                double expected = -0.25 * sin(2.0 * PI * 1000.0 * ((double)i - arrival) / rate);
+                const double expected = -0.25 * sin(2.0 * PI * 1000.0 * ((double)i - arrival) / rate);
                 error = fmax(error, fmax(fabs(frame[0] - expected), fabs(frame[1] - expected)));
             }
         }

@@ -2,6 +2,17 @@
 #define SIGNAL_H
 
 #include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+extern const double PI;
+
+// Noise from a linear congruential generator, from -1.0 to just under 1.0. Each call moves the seed on.
+float noise(uint32_t *seed);
 
 // Both read the left of interleaved stereo.
 //
@@ -11,5 +22,9 @@ double tone_amplitude(const float *stereo, size_t frames, double frequency, doub
 
 // The root mean square of what is left once that tone is taken away.
 double residual_rms(const float *stereo, size_t frames, double frequency, double rate);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

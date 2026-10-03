@@ -108,7 +108,7 @@ static void a_preset_change_leaves_only_the_filter_to_play_out(void)
     int late = 0;
     for (int tick = 0; tick < 2 * REVERB_ECHO; tick++)
     {
-        int16_t left = step(0, &right);
+        const int16_t left = step(0, &right);
         if (tick >= 2 * FILTER_DELAY)
         {
             late |= left;

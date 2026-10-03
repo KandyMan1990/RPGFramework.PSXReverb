@@ -1,4 +1,5 @@
 #include "host.h"
+#include "numeric.h"
 #include "wav.h"
 
 #include <stdlib.h>
@@ -25,8 +26,8 @@ static const char usage[] =
 static bool parse_int(const char *text, int low, int high, int *value)
 {
     char *end;
-    long parsed = strtol(text, &end, 10);
-    bool valid = *text != '\0' && *end == '\0' && parsed >= low && parsed <= high;
+    const long parsed = strtol(text, &end, 10);
+    const bool valid = *text != '\0' && *end == '\0' && parsed >= low && parsed <= high;
     if (valid)
     {
         *value = (int)parsed;
@@ -44,12 +45,6 @@ static int find_mode(const char *name)
         }
     }
     return -1;
-}
-
-static int16_t saturate16(int32_t value)
-{
-    int16_t saturated = (int16_t)(value < INT16_MIN ? INT16_MIN : value > INT16_MAX ? INT16_MAX : value);
-    return saturated;
 }
 
 int main(int argc, char **argv)
@@ -143,7 +138,7 @@ int main(int argc, char **argv)
         return 1;
     }
     static host_reverb host;
-    uint32_t rate = reader.sample_rate;
+    const uint32_t rate = reader.sample_rate;
     if (!host_reverb_init(&host, rate))
     {
         fprintf(stderr, "psxreverb_render: %s is %u Hz, which the reverb cannot be resampled to\n", paths[0],
@@ -152,7 +147,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    uint64_t total = (uint64_t)reader.frames + (uint64_t)tail_seconds * rate;
+    const uint64_t total = (uint64_t)reader.frames + (uint64_t)tail_seconds * rate;
     FILE *output = 36 + total * 4 > UINT32_MAX ? NULL : fopen(paths[1], "wb");
     if (!output || !wav_write_header(output, rate, (uint32_t)total))
     {
@@ -190,9 +185,9 @@ int main(int argc, char **argv)
     bool written = true;
     for (uint64_t done = 0; done < total && written;)
     {
-        size_t count = total - done < BLOCK ? (size_t)(total - done) : BLOCK;
+        const size_t count = total - done < BLOCK ? (size_t)(total - done) : BLOCK;
         // Past the end of the input, or of a file shorter than its header says, is silence.
-        size_t read = wav_read_stereo(&reader, block, count);
+        const size_t read = wav_read_stereo(&reader, block, count);
         memset(block + read * 2, 0, (count - read) * 2 * sizeof(block[0]));
         for (size_t i = 0; i < count * 2; i++)
         {
@@ -202,9 +197,9 @@ int main(int argc, char **argv)
         // At 44.1 kHz the reverb's float is its 16-bit sample exactly, so this mix is the console's.
         for (size_t i = 0; i < count * 2; i++)
         {
-            float scaled = wet[i] * 32768.0f;
-            int32_t reverb_sample = (int32_t)(scaled + (scaled < 0 ? -0.5f : 0.5f));
-            int32_t mixed = wet_only ? reverb_sample : block[i] + reverb_sample;
+            const float scaled = wet[i] * 32768.0f;
+            const int32_t reverb_sample = (int32_t)(scaled + (scaled < 0 ? -0.5f : 0.5f));
+            const int32_t mixed = wet_only ? reverb_sample : block[i] + reverb_sample;
             if (mixed < INT16_MIN || mixed > INT16_MAX)
             {
                 clipped++;
@@ -215,7 +210,7 @@ int main(int argc, char **argv)
         done += count;
     }
 
-    double added = host_reverb_added_latency(&host);
+    const double added = host_reverb_added_latency(&host);
     wav_close(&reader);
     host_reverb_free(&host);
     if (fclose(output) != 0 || !written)
