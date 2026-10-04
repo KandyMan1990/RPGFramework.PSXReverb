@@ -111,8 +111,25 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           pattern: plugin-*
-          merge-multiple: true
-          path: .
+          path: ${{ runner.temp }}/plugins
+      # Every platform installs the shared folders' .meta files. The download action unpacks artifacts at once, so
+      # merging them there left a file part one copy and part another; they are merged one at a time instead, and a
+      # file two platforms disagree on fails the run.
+      - name: Merge the plugins
+        run: |
+          merged="$RUNNER_TEMP/merged"
+          mkdir -p "$merged"
+          for artifact in "$RUNNER_TEMP"/plugins/*; do
+            (cd "$artifact" && find . -type f) | while read -r file; do
+              if [ -e "$merged/$file" ]; then
+                cmp -s "$artifact/$file" "$merged/$file" || { echo "$file differs in $(basename "$artifact")"; exit 1; }
+              else
+                mkdir -p "$(dirname "$merged/$file")"
+                cp "$artifact/$file" "$merged/$file"
+              fi
+            done
+          done
+          cp -R "$merged"/. .
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

@@ -1,2 +1,3 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Auto detect text files and perform LF normalization. Checked out as LF everywhere too, so a Windows runner installs
+# the same .meta files as every other platform and the plugins workflow can merge them.
+* text=auto eol=lf
