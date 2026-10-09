@@ -4,6 +4,8 @@
 #include "signal.h"
 #include "suites.h"
 
+#include <math.h>
+
 static host_reverb expected;
 
 static void noise_block(uint32_t *seed, float *block, size_t frames)
@@ -128,6 +130,79 @@ static void out_of_range_values_are_held(void)
     psx_reverb_destroy(r);
 }
 
+// A 2 ms tone at 1 kHz through echo at the given settings: the peak of each of its first repeats, and where the first is.
+#define ECHO_RATE 48000
+#define ECHO_FRAMES (ECHO_RATE * 4)
+
+static void echo_repeats(int delay, int feedback, double *first_seconds, float peaks[2])
+{
+    static float in[ECHO_FRAMES * 2], out[ECHO_FRAMES * 2];
+    for (size_t i = 0; i < ECHO_FRAMES * 2; i++)
+    {
+        in[i] = 0.0f;
+    }
+    for (size_t i = 0; i < ECHO_RATE / 500; i++)
+    {
+        in[i * 2] = (float)(0.8 * sin(2.0 * PI * 1000.0 * (double)i / ECHO_RATE));
+        in[i * 2 + 1] = in[i * 2];
+    }
+
+    psx_reverb *r = psx_reverb_create(ECHO_RATE);
+    psx_reverb_set_preset(r, PSX_REVERB_ECHO);
+    psx_reverb_set_delay(r, delay);
+    psx_reverb_set_feedback(r, feedback);
+    psx_reverb_set_depth(r, 127);
+    psx_reverb_process(r, in, out, ECHO_FRAMES);
+    psx_reverb_destroy(r);
+
+    // The console's same-side delay in its 22,050 Hz samples, four to each of the register's 8-byte units.
+    const size_t period = (size_t)((double)(((delay << 12) / 127) * 4) / 22050.0 * ECHO_RATE);
+    size_t loudest = 0;
+    for (int repeat = 0; repeat < 2; repeat++)
+    {
+        peaks[repeat] = 0.0f;
+        for (size_t i = (size_t)repeat * period + period / 2; i < (size_t)repeat * period + period * 3 / 2; i++)
+        {
+            const float level = fabsf(out[i * 2]);
+            if (level > peaks[repeat])
+            {
+                peaks[repeat] = level;
+                loudest = repeat == 0 ? i : loudest;
+            }
+        }
+    }
+    *first_seconds = (double)loudest / ECHO_RATE;
+}
+
+// Each delay step is 4,096 / 127 of the register's units, so a repeat comes (d << 12) / 127 * 4 of the console's samples
+// after the last, plus its two filters' 38: 5.85 ms a step, 743 ms at 127. Half the 1,486 ms the work area reaches.
+static void echo_repeats_a_delay_step_apart(void)
+{
+    const int delays[] = { 8, 32, 96, 127 };
+    for (int i = 0; i < 4; i++)
+    {
+        double first;
+        float peaks[2];
+        echo_repeats(delays[i], 64, &first, peaks);
+        const double due = (((delays[i] << 12) / 127) * 4 + 38) / 22050.0;
+        CHECK(fabs(first - due) < 0.001);
+    }
+}
+
+// The wall volume is feedback / 127 of full, so each repeat is that much of the one before: 64 drops 6 dB a repeat.
+// 127 is the exception, the console's own echo, whose sign flips and barely decays.
+static void each_repeat_is_feedback_over_127_of_the_last(void)
+{
+    const int feedbacks[] = { 32, 64, 96 };
+    for (int i = 0; i < 3; i++)
+    {
+        double first;
+        float peaks[2];
+        echo_repeats(32, feedbacks[i], &first, peaks);
+        CHECK(fabs(peaks[1] / peaks[0] - feedbacks[i] / 127.0) < 0.02);
+    }
+}
+
 void api_tests(void)
 {
     rates_it_cannot_reach_give_none();
@@ -135,4 +210,6 @@ void api_tests(void)
     only_a_different_preset_cuts_the_tail();
     echo_settings_wait_for_echo_and_delay();
     out_of_range_values_are_held();
+    echo_repeats_a_delay_step_apart();
+    each_repeat_is_feedback_over_127_of_the_last();
 }
