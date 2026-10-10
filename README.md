@@ -36,17 +36,46 @@ where the console turned reverb on or off per voice.
 | --- | --- | --- | --- |
 | Preset | 0–9 | 4 | 0 off, 1 room, 2–4 studio A–C, 5 hall, 6 space, 7 echo, 8 delay, 9 pipe. A different preset clears the reverb, cutting its tail; the same one again changes nothing. |
 | Depth | 0–127 | 40 | The reverb's output volume, as the console's tools give it. |
-| Delay | 1–127 | 127 | Echo and delay's delay time. Other presets ignore it. |
-| Feedback | 0–127 | 127 | Echo's feedback. Other presets ignore it: delay with feedback is echo. |
+| Delay | 1–127 | 127 | Echo and delay's delay time: about 5.85 ms a step, so a repeat every 743 ms at 127. Other presets ignore it. |
+| Feedback | 0–127 | 127 | Echo's feedback: each repeat is Feedback / 127 of the one before, so 64 halves it. 127, the console's own, flips the sign and barely decays, ringing on for minutes. Other presets ignore it: delay with feedback is echo. |
 
 Values are rounded to whole numbers, and held to their range. The Inspector names the preset in a dropdown above
 Unity's sliders, says when the preset ignores Delay or Feedback, and warns when the effect is playing silence. To set a
 parameter from a script, expose it from its slider's context menu and call `AudioMixer.SetFloat`.
 
+**Change Delay before the echo sounds, not while it rings.** A new Delay moves where the echo reads in what it holds
+without clearing it, so the join clicks, and clicks again on every repeat until the echo has died away. Choosing a
+different preset clears it, and the new Delay starts clean.
+
+Some suggestions for fitting it in:
+
+- **One reverb group for the whole mix**, as the console had one reverb unit: music and sound effects each send to it
+  at levels of their own, and the preset and depth are the room they share.
+- **Set the preset and depth per place or per song**, from a script through their exposed parameters, at a change of
+  scene or song where you can, since a new preset cuts the tail of what was ringing.
+- **Treat Depth as how much reverb the place has** — 40, the default, suits most music — and the Sends as how much of
+  each sound goes in.
+
 It runs at the rate Unity's mixer does, from 8 to 192 kHz. At 44.1 kHz it is the console's reverb sample for sample; at
 any other rate it resamples to 44.1 kHz and back, flat across the reverb's band, and the reverb arrives a little later
 than on the console: 0.29 ms at 48 kHz and above, 0.66 ms at 32 kHz, and 3 to 8 ms from 22.05 kHz down. A rate it
 cannot run at plays silence. Unity makes the effect again when its output rate changes.
+
+---
+
+## In the RPG Framework
+
+Nothing in the framework needs it, and [RPGFramework.Audio](https://github.com/KandyMan1990/RPGFramework.Audio) picks
+it up when it is installed:
+
+- **A music asset gains Reverb settings**, a preset and a volume, each set when the song starts, and the music player's
+  `SetReverbPreset` and `SetReverbVolume` set either directly. The volume, 0 to 1, goes to Depth in a straight line.
+  Audio writes them through Preset and Depth exposed as `ReverbPreset` and `ReverbDepth`.
+- **Field scripts set them** with `SET_REVERB_PRESET` and `SET_REVERB_VOLUME`.
+- **The framework's mixer puts it on its Reverb bus**, fed by the music's and sound effects' reverb sends and by the
+  music's echo.
+- Without it, Audio hides the settings and writes nothing to the mixer, keeping a song's settings so they come back if
+  it is installed again.
 
 ---
 
