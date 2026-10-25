@@ -24,7 +24,7 @@ the registration waits for, so the mixer would report that PSX Reverb cannot be 
 Add the package from its git URL in the Package Manager, naming a release:
 
 ```
-https://github.com/KandyMan1990/RPGFramework.PSXReverb.git#v1.0.0
+https://github.com/KandyMan1990/RPGFramework.PSXReverb.git#v1.0.1
 ```
 
 **PSX Reverb writes the reverb alone**, in place of what its group receives, as the console adds its reverb to the dry
